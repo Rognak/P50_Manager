@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+
+# Env & IDE
+.env
+.env.local
+.vscode/
+.idea/
+.DS_Store
+.claude/
+
+# Postgres volume (only if bind-mounted)
+pgdata/
