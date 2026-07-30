@@ -1,0 +1,147 @@
+@import 'highlight.js/styles/github-dark.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* Markdown body inside modals */
+.md-body code {
+  background: #0b1223;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.875em;
+  color: #e2e8f0;
+}
+.md-body pre {
+  background: #0b1223 !important;
+  padding: 12px 14px;
+  border-radius: 8px;
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.md-body pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.875em;
+}
+.md-body pre code.hljs {
+  background: transparent;
+  padding: 0;
+}
+.md-body h1,
+.md-body h2,
+.md-body h3 {
+  color: #e2e8f0;
+  font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 0.4em;
+}
+.md-body p {
+  margin: 0.5em 0;
+  line-height: 1.55;
+}
+.md-body ul,
+.md-body ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+.md-body li {
+  margin: 0.2em 0;
+}
+.md-body strong {
+  color: #e2e8f0;
+}
+.md-body a {
+  color: #34d4c8;
+  text-decoration: underline;
+}
+
+/* Self-Review DOCX viewer (HTML от mammoth) */
+.sr-viewer {
+  color: #cbd5e1;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.sr-viewer .sr-title,
+.sr-viewer h1.sr-title {
+  font-size: 1.5rem;
+  color: #e2e8f0;
+  font-weight: 700;
+  margin-bottom: 0.5em;
+}
+.sr-viewer .sr-subtitle,
+.sr-viewer p.sr-subtitle {
+  color: #94a3b8;
+  margin-bottom: 1.5em;
+}
+.sr-viewer .sr-h1,
+.sr-viewer h2.sr-h1 {
+  font-size: 1.125rem;
+  color: #e2e8f0;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 0.3em;
+}
+.sr-viewer .sr-h2,
+.sr-viewer h3.sr-h2 {
+  font-size: 1rem;
+  color: #cbd5e1;
+  font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 0.3em;
+}
+.sr-viewer .sr-h3,
+.sr-viewer h4.sr-h3 {
+  font-size: 0.9375rem;
+  color: #cbd5e1;
+  font-weight: 600;
+  margin-top: 0.8em;
+  margin-bottom: 0.2em;
+}
+.sr-viewer p {
+  margin: 0.5em 0;
+}
+.sr-viewer ul,
+.sr-viewer ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+  list-style: disc outside;
+}
+.sr-viewer ol {
+  list-style: decimal outside;
+}
+.sr-viewer li {
+  margin: 0.25em 0;
+}
+.sr-viewer strong {
+  color: #e2e8f0;
+}
+.sr-viewer table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75em 0;
+  font-size: 0.875rem;
+}
+.sr-viewer th,
+.sr-viewer td {
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+.sr-viewer th {
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+}
+.sr-viewer a {
+  color: #34d4c8;
+  text-decoration: underline;
+}
