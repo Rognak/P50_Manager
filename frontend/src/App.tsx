@@ -23,6 +23,8 @@ import { SelfReviewDetail } from './pages/SelfReviewDetail'
 import { SelfReviewList } from './pages/SelfReviewList'
 import { VacancyDetail } from './pages/VacancyDetail'
 import { VacancyList } from './pages/VacancyList'
+import { TechnologyDetail } from './pages/TechnologyDetail'
+import { TechnologyRadar } from './pages/TechnologyRadar'
 
 export default function App() {
   return (
@@ -84,6 +86,26 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <ProductDetail />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/technology-radar"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <TechnologyRadar />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/technology-radar/:id"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <TechnologyDetail />
             </Layout>
           </ProtectedRoute>
         }

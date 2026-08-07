@@ -28,6 +28,7 @@ from app.api import (
     rotations,
     self_review,
     tech_maturity,
+    technologies,
     users,
     vacancies,
 )
@@ -82,6 +83,9 @@ app.include_router(candidates.router, prefix="/api")
 app.include_router(departments.router, prefix="/api")
 app.include_router(departments.overview_router, prefix="/api")
 app.include_router(tech_maturity.router, prefix="/api")
+app.include_router(technologies.router, prefix="/api")
+app.include_router(technologies.product_router, prefix="/api")
+app.include_router(technologies.employee_router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(employees_search.router, prefix="/api")
 app.include_router(employee_public.router, prefix="/api")

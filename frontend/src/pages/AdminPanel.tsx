@@ -46,6 +46,7 @@ const NAV_KEY_LABEL: Record<string, string> = {
   dashboard: 'Dashboard',
   employees: 'Сотрудники',
   projects: 'Проекты',
+  technology_radar: 'Радар технологий',
   departments: 'Тех. зрелость практик',
   assignments: 'Поручения',
   rotations: 'Ротации',

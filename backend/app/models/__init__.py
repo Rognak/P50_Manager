@@ -23,6 +23,14 @@ from app.models.project import (
 from app.models.rotation import Rotation, RotationApproval, RotationSuggestion
 from app.models.self_review import SelfReview
 from app.models.tech_maturity import TechMaturitySurvey
+from app.models.technology import (
+    Technology,
+    TechnologyCategory,
+    TechnologyDecision,
+    TechnologyLink,
+    TechnologyMember,
+    TechnologyProduct,
+)
 from app.models.vacancy import Vacancy
 from app.models.mpk import (
     AIJob,
@@ -82,6 +90,12 @@ __all__ = [
     "SelfReview",
     "SystemSetting",
     "TechMaturitySurvey",
+    "Technology",
+    "TechnologyCategory",
+    "TechnologyDecision",
+    "TechnologyLink",
+    "TechnologyMember",
+    "TechnologyProduct",
     "User",
     "Vacancy",
 ]

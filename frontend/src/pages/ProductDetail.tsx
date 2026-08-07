@@ -5,6 +5,7 @@ import {
   EmployeeSearchItem,
   Product,
   ProductListItem,
+  ProductTechnology,
   ProductStatus,
   ProjectCoverage,
   ProjectExtractedCompetenciesResponse,
@@ -480,6 +481,7 @@ export function ProductDetail() {
   // Единый фильтр периода: управляет PR-ами, Performance и AI-компетенциями.
   const [periodDays, setPeriodDays] = useState(90)
   const [otherProducts, setOtherProducts] = useState<ProductListItem[]>([])
+  const [technologies, setTechnologies] = useState<ProductTechnology[]>([])
   const [openRotations, setOpenRotations] = useState<RotationListItem[]>([])
   const [proposingFor, setProposingFor] = useState<{
     employee_id: number
@@ -522,6 +524,10 @@ export function ProductDetail() {
       .then((list) =>
         setOtherProducts(list.filter((p) => p.id !== productId)),
       )
+      .catch(() => undefined)
+    api.products
+      .technologies(productId)
+      .then(setTechnologies)
       .catch(() => undefined)
     // Открытые ротации (proposed/accepted) с участием этого продукта в качестве источника.
     // Используем стандартный фильтр rotations.list по statusам.
@@ -787,6 +793,40 @@ export function ProductDetail() {
           label="Стек компетенций"
           value={product.competencies.length}
         />
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Технологии
+        </h2>
+        {technologies.length === 0 ? (
+          <div className="rounded-2xl bg-bg-elevated px-6 py-5 text-sm text-slate-500">
+            Технологии продукта пока не указаны. Связи управляются в карточке технологии.
+          </div>
+        ) : (
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {technologies.map((technology) => {
+              const debt = technology.status === 'hold' && product.status === 'active'
+              return (
+                <button
+                  key={technology.technology_id}
+                  onClick={() => navigate(`/technology-radar/${technology.technology_id}`)}
+                  className={`rounded-xl p-4 text-left ring-1 transition hover:bg-bg-panel ${debt ? 'bg-rose-500/10 ring-rose-500/30' : 'bg-bg-elevated ring-white/5'}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{technology.technology_name}</span>
+                    <span className="rounded bg-bg-panel px-2 py-0.5 text-xs uppercase text-slate-300">
+                      {technology.status} · {technology.usage_type}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">{technology.category.name}</div>
+                  {technology.notes && <div className="mt-2 text-xs text-slate-400">{technology.notes}</div>}
+                  {debt && <div className="mt-2 text-xs text-rose-300">Технология находится в Hold и всё ещё используется активным продуктом.</div>}
+                </button>
+              )
+            })}
+          </div>
+        )}
       </section>
 
       {/* performance (объединено с обзором) */}

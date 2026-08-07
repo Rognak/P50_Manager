@@ -79,6 +79,11 @@ export function Layout({ children }: { children: ReactNode }) {
               Продукты
             </NavLink>
           )}
+          {visible('technology_radar') && (
+            <NavLink to="/technology-radar" className={linkClass}>
+              Радар технологий
+            </NavLink>
+          )}
           {visible('departments') && (
             <NavLink to="/departments" className={linkClass}>
               Тех. зрелость практик

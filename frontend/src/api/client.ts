@@ -930,6 +930,92 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.json()
 }
 
+export type TechnologyStatus = 'adopt' | 'trial' | 'assess' | 'hold'
+export type TechnologyMemberRole = 'leader' | 'expert' | 'practitioner'
+export type TechnologyUsageType = 'production' | 'pilot' | 'evaluation' | 'legacy'
+export type TechnologyLinkKind =
+  | 'documentation' | 'methodology' | 'guide' | 'course'
+  | 'community' | 'source' | 'article' | 'other'
+
+export interface TechnologyCategory {
+  id: number; code: string; name: string; description: string | null; sort_order: number
+}
+export interface TechnologyMetaOption { value: string; label: string }
+export interface TechnologyMeta {
+  categories: TechnologyCategory[]
+  statuses: TechnologyMetaOption[]
+  member_roles: TechnologyMetaOption[]
+  usage_types: TechnologyMetaOption[]
+  link_kinds: TechnologyMetaOption[]
+}
+export interface TechnologyAttentionFlags {
+  overdue_review: boolean
+  no_expertise: boolean
+  hold_in_active_products: boolean
+  has_attention: boolean
+}
+export interface TechnologyRef { id: number; name: string; status: TechnologyStatus }
+export interface TechnologyListItem {
+  id: number; name: string; category: TechnologyCategory; status: TechnologyStatus
+  status_reason_md: string | null; replacement: TechnologyRef | null
+  status_changed_at: string; last_reviewed_at: string | null; next_review_at: string | null
+  is_active: boolean; leaders_count: number; experts_count: number
+  practitioners_count: number; products_count: number; active_products_count: number
+  attention: TechnologyAttentionFlags
+}
+export interface TechnologyMember {
+  employee_id: number; full_name: string; role_name: string | null
+  grade_code: string | null; department_name: string | null; employee_active: boolean
+  role: TechnologyMemberRole; source: 'manual' | 'inferred'; notes: string | null
+}
+export interface TechnologyProductLink {
+  product_id: number; product_name: string; product_status: string
+  usage_type: TechnologyUsageType; notes: string | null
+}
+export interface TechnologyLink {
+  id: number; kind: TechnologyLinkKind; title: string; url: string; sort_order: number
+}
+export interface TechnologyDecision {
+  id: number; event_kind: 'created' | 'status_changed' | 'reviewed' | 'archived' | 'restored'
+  from_status: TechnologyStatus | null; to_status: TechnologyStatus | null
+  summary_md: string; next_review_at: string | null; created_by: number; created_at: string
+}
+export interface Technology extends TechnologyListItem {
+  description_md: string | null; members: TechnologyMember[]
+  products: TechnologyProductLink[]; links: TechnologyLink[]; decisions: TechnologyDecision[]
+  created_by: number; created_at: string; updated_at: string
+}
+export interface ProductTechnology {
+  technology_id: number; technology_name: string; category: TechnologyCategory
+  status: TechnologyStatus; usage_type: TechnologyUsageType; notes: string | null
+  attention: TechnologyAttentionFlags
+}
+export interface EmployeeTechnologyProductRef {
+  product_id: number
+  product_name: string
+  usage_type: TechnologyUsageType
+}
+export interface EmployeeTechnology {
+  technology_id: number
+  technology_name: string
+  category: TechnologyCategory
+  status: TechnologyStatus
+  member_role: TechnologyMemberRole
+  source: 'manual' | 'inferred'
+  notes: string | null
+  products: EmployeeTechnologyProductRef[]
+  attention: TechnologyAttentionFlags
+}
+export interface TechnologyCreatePayload {
+  name: string; category_id: number; description_md?: string | null
+  status: TechnologyStatus; status_reason_md?: string | null
+  replacement_technology_id?: number | null; next_review_at?: string | null
+}
+export interface TechnologyUpdatePayload {
+  name?: string; category_id?: number; description_md?: string | null
+  replacement_technology_id?: number | null; next_review_at?: string | null
+}
+
 export const api = {
   login: async (email: string, password: string) => {
     const body = new URLSearchParams({ username: email, password })
@@ -943,6 +1029,62 @@ export const api = {
   },
   me: () => request<CurrentUser>('/auth/me'),
 
+  technologies: {
+    meta: () => request<TechnologyMeta>('/technologies/meta'),
+    list: (params?: {
+      q?: string; status?: TechnologyStatus; category_id?: number
+      product_id?: number; attention_only?: boolean; include_archived?: boolean
+    }) => {
+      const qs = new URLSearchParams()
+      if (params?.q) qs.set('q', params.q)
+      if (params?.status) qs.set('status', params.status)
+      if (params?.category_id) qs.set('category_id', String(params.category_id))
+      if (params?.product_id) qs.set('product_id', String(params.product_id))
+      if (params?.attention_only) qs.set('attention_only', 'true')
+      if (params?.include_archived) qs.set('include_archived', 'true')
+      return request<TechnologyListItem[]>(`/technologies${qs.size ? `?${qs}` : ''}`)
+    },
+    get: (id: number) => request<Technology>(`/technologies/${id}`),
+    create: (data: TechnologyCreatePayload) =>
+      request<Technology>('/technologies', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: TechnologyUpdatePayload) =>
+      request<Technology>(`/technologies/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    changeStatus: (id: number, data: {
+      status: TechnologyStatus; reason_md: string; next_review_at?: string | null
+      replacement_technology_id?: number | null
+    }) => request<Technology>(`/technologies/${id}/status`, { method: 'POST', body: JSON.stringify(data) }),
+    review: (id: number, data: { summary_md: string; next_review_at?: string | null }) =>
+      request<Technology>(`/technologies/${id}/review`, { method: 'POST', body: JSON.stringify(data) }),
+    archive: (id: number, reason_md: string) =>
+      request<Technology>(`/technologies/${id}/archive`, { method: 'POST', body: JSON.stringify({ reason_md }) }),
+    restore: (id: number, reason_md = 'Технология восстановлена в реестре') =>
+      request<Technology>(`/technologies/${id}/restore`, { method: 'POST', body: JSON.stringify({ reason_md }) }),
+    members: {
+      add: (id: number, data: { employee_id: number; role: TechnologyMemberRole; notes?: string | null }) =>
+        request<TechnologyMember>(`/technologies/${id}/members`, { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: number, employeeId: number, data: { role?: TechnologyMemberRole; notes?: string | null }) =>
+        request<TechnologyMember>(`/technologies/${id}/members/${employeeId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      remove: (id: number, employeeId: number) =>
+        request<void>(`/technologies/${id}/members/${employeeId}`, { method: 'DELETE' }),
+    },
+    products: {
+      add: (id: number, data: { product_id: number; usage_type: TechnologyUsageType; notes?: string | null }) =>
+        request<TechnologyProductLink>(`/technologies/${id}/products`, { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: number, productId: number, data: { usage_type?: TechnologyUsageType; notes?: string | null }) =>
+        request<TechnologyProductLink>(`/technologies/${id}/products/${productId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      remove: (id: number, productId: number) =>
+        request<void>(`/technologies/${id}/products/${productId}`, { method: 'DELETE' }),
+    },
+    links: {
+      add: (id: number, data: { kind: TechnologyLinkKind; title: string; url: string; sort_order?: number }) =>
+        request<TechnologyLink>(`/technologies/${id}/links`, { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: number, linkId: number, data: Partial<Omit<TechnologyLink, 'id'>>) =>
+        request<TechnologyLink>(`/technologies/${id}/links/${linkId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      remove: (id: number, linkId: number) =>
+        request<void>(`/technologies/${id}/links/${linkId}`, { method: 'DELETE' }),
+    },
+  },
+
   employees: {
     list: () => request<Employee[]>('/employees'),
     get: (id: number) => request<Employee>(`/employees/${id}`),
@@ -955,6 +1097,8 @@ export const api = {
     mpkHistory: (id: number) => request<MpkHistory>(`/employees/${id}/mpk-history`),
     projects: (id: number) =>
       request<EmployeeProjectHistoryItem[]>(`/employees/${id}/projects`),
+    technologies: (id: number) =>
+      request<EmployeeTechnology[]>(`/employees/${id}/technologies`),
     devMetrics: (id: number, opts?: { from?: string; to?: string }) => {
       const qs = new URLSearchParams()
       if (opts?.from) qs.set('from', opts.from)
@@ -1193,6 +1337,7 @@ export const api = {
   products: {
     list: () => request<ProductListItem[]>('/products'),
     get: (id: number) => request<Product>(`/products/${id}`),
+    technologies: (id: number) => request<ProductTechnology[]>(`/products/${id}/technologies`),
     create: (data: ProductCreate) =>
       request<Product>('/products', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: number, data: ProductUpdate) =>

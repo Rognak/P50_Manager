@@ -74,6 +74,7 @@ NAV_KEYS: list[str] = [
     "dashboard",
     "employees",
     "projects",
+    "technology_radar",
     "departments",
     "assignments",
     "rotations",
