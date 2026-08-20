@@ -9,6 +9,7 @@
 и перезаливает содержимое заново. Существующие оценки (assessments) сносятся
 каскадом — на этапе MVP это осознанный выбор.
 """
+
 import asyncio
 import re
 import sys
@@ -181,9 +182,9 @@ async def seed_roles_and_profiles(session, ws) -> tuple[int, int]:
         grade_cell = ws.cell(r, 5).value
         if not role_name or not grade_cell:
             continue
-        role = roles_map.get(str(role_name).strip())
+        existing_role = roles_map.get(str(role_name).strip())
         grade = grade_by_code.get(str(grade_cell).strip())
-        if role is None or grade is None:
+        if existing_role is None or grade is None:
             continue
         for col, comp_name in col_to_comp_name.items():
             comp = resolve_comp(comp_name)
@@ -200,7 +201,7 @@ async def seed_roles_and_profiles(session, ws) -> tuple[int, int]:
                 continue
             session.add(
                 RoleProfile(
-                    role_id=role.id,
+                    role_id=existing_role.id,
                     grade_id=grade.id,
                     competency_id=comp.id,
                     required_level=lvl,

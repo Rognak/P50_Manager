@@ -113,7 +113,7 @@ export function SelfReviewSparkline({
                 y1={yOf(s)}
                 x2={width - PAD_R}
                 y2={yOf(s)}
-                stroke="#1f2937"
+                stroke="var(--chart-grid)"
                 strokeWidth="1"
                 strokeDasharray={s === 1 || s === 10 ? '0' : '2 3'}
               />
@@ -122,7 +122,7 @@ export function SelfReviewSparkline({
                 y={yOf(s) + 3}
                 textAnchor="end"
                 fontSize="10"
-                fill="#64748b"
+                fill="var(--chart-muted)"
               >
                 {s}
               </text>
@@ -136,7 +136,7 @@ export function SelfReviewSparkline({
               y1={PAD_T}
               x2={hovX}
               y2={PAD_T + innerH}
-              stroke="#475569"
+              stroke="var(--chart-cursor)"
               strokeDasharray="3 3"
             />
           )}
@@ -145,7 +145,7 @@ export function SelfReviewSparkline({
           {projLine.path && (
             <path
               d={projLine.path}
-              stroke="#34d4c8"
+              stroke="var(--chart-primary)"
               strokeWidth="2"
               fill="none"
             />
@@ -159,8 +159,8 @@ export function SelfReviewSparkline({
                   cx={p.x}
                   cy={p.y}
                   r={isHov ? 5 : 4}
-                  fill="#34d4c8"
-                  stroke={isHov ? '#0b1223' : 'none'}
+                  fill="var(--chart-primary)"
+                  stroke={isHov ? 'var(--chart-point-outline)' : 'none'}
                   strokeWidth={isHov ? 1.5 : 0}
                 />
                 <text
@@ -169,7 +169,7 @@ export function SelfReviewSparkline({
                   textAnchor="middle"
                   fontSize="11"
                   fontWeight="600"
-                  fill="#34d4c8"
+                  fill="var(--chart-primary)"
                 >
                   {p.score}
                 </text>
@@ -181,7 +181,7 @@ export function SelfReviewSparkline({
           {compLine.path && (
             <path
               d={compLine.path}
-              stroke="#fbbf24"
+              stroke="rgb(var(--color-warning))"
               strokeWidth="2"
               fill="none"
               strokeDasharray="4 3"
@@ -196,8 +196,8 @@ export function SelfReviewSparkline({
                   cx={p.x}
                   cy={p.y}
                   r={isHov ? 5 : 4}
-                  fill="#fbbf24"
-                  stroke={isHov ? '#0b1223' : 'none'}
+                  fill="rgb(var(--color-warning))"
+                  stroke={isHov ? 'var(--chart-point-outline)' : 'none'}
                   strokeWidth={isHov ? 1.5 : 0}
                 />
                 <text
@@ -206,7 +206,7 @@ export function SelfReviewSparkline({
                   textAnchor="middle"
                   fontSize="11"
                   fontWeight="600"
-                  fill="#fbbf24"
+                  fill="rgb(var(--color-warning))"
                 >
                   {p.score}
                 </text>
@@ -223,7 +223,7 @@ export function SelfReviewSparkline({
               textAnchor="middle"
               fontSize="11"
               fontWeight={hoverIdx === i ? 700 : 400}
-              fill={hoverIdx === i ? '#e2e8f0' : '#94a3b8'}
+              fill={hoverIdx === i ? 'var(--chart-text)' : 'var(--chart-muted)'}
             >
               {r.year}
             </text>

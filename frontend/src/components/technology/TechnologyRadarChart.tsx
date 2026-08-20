@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { TechnologyCategory, TechnologyListItem, TechnologyStatus } from '../../api/client'
+import { TechnologyIcon } from './TechnologyIcon'
 
 const STATUS_LABEL: Record<TechnologyStatus, string> = {
   adopt: 'Adopt', trial: 'Trial', assess: 'Assess', hold: 'Hold',
 }
 const STATUS_COLOR: Record<TechnologyStatus, string> = {
-  adopt: '#5eead4', trial: '#fbbf24', assess: '#7dd3fc', hold: '#fb7185',
+  adopt: 'var(--status-adopt)', trial: 'var(--status-trial)', assess: 'var(--status-assess)', hold: 'var(--status-hold)',
 }
 const RINGS: TechnologyStatus[] = ['adopt', 'trial', 'assess', 'hold']
 const CENTER = 300
@@ -71,22 +72,22 @@ export function TechnologyRadarChart({
             <path
               key={category.id}
               d={sectorPath(index * sectorSize, (index + 1) * sectorSize, OUTER)}
-              fill={index % 2 ? '#111827' : '#0f172a'}
-              stroke="#334155"
+              fill={index % 2 ? 'var(--chart-surface-alt)' : 'var(--chart-surface)'}
+              stroke="var(--chart-border)"
               strokeWidth="1"
             />
           ))}
           {[1, 2, 3, 4].map((ring) => (
-            <circle key={ring} cx={CENTER} cy={CENTER} r={ring * OUTER / 4} fill="none" stroke="#475569" strokeWidth="1" />
+            <circle key={ring} cx={CENTER} cy={CENTER} r={ring * OUTER / 4} fill="none" stroke="var(--chart-grid)" strokeWidth="1" />
           ))}
           {RINGS.map((status, index) => (
-            <text key={status} x={CENTER + 5} y={CENTER - index * OUTER / 4 - 8} fill="#94a3b8" fontSize="11">
+            <text key={status} x={CENTER + 5} y={CENTER - index * OUTER / 4 - 8} fill="var(--chart-muted)" fontSize="11">
               {STATUS_LABEL[status]}
             </text>
           ))}
           {categories.map((category, index) => {
             const p = polar(OUTER + 24, index * sectorSize + sectorSize / 2)
-            return <text key={category.id} x={p.x} y={p.y} textAnchor="middle" fill="#cbd5e1" fontSize="10">{category.name}</text>
+            return <text key={category.id} x={p.x} y={p.y} textAnchor="middle" fill="var(--chart-text)" fontSize="10">{category.name}</text>
           })}
           {items.map((item) => {
             const p = points.get(item.id)
@@ -113,8 +114,13 @@ export function TechnologyRadarChart({
                 }}
               >
                 <title>{label}</title>
-                <circle r="12" fill={STATUS_COLOR[item.status]} stroke={item.attention.has_attention ? '#fff' : '#0f172a'} strokeWidth={item.attention.has_attention ? 2 : 1} />
-                <text textAnchor="middle" dominantBaseline="central" fill="#07111f" fontWeight="700" fontSize={item.id > 99 ? 8 : 10}>{item.id}</text>
+                <circle
+                  r="12"
+                  fill={STATUS_COLOR[item.status]}
+                  stroke={activeId === item.id ? 'var(--chart-primary)' : item.attention.has_attention ? 'var(--chart-tooltip-text)' : 'var(--chart-point-outline)'}
+                  strokeWidth={activeId === item.id ? 3 : item.attention.has_attention ? 2 : 1}
+                />
+                <text textAnchor="middle" dominantBaseline="central" fill="var(--chart-point-label)" fontWeight="700" fontSize={item.id > 99 ? 8 : 10}>{item.id}</text>
               </g>
             )
           })}
@@ -126,10 +132,10 @@ export function TechnologyRadarChart({
             const tooltipY = Math.min(Math.max(point.y - 58, 8), 520)
             return (
               <g transform={`translate(${tooltipX} ${tooltipY})`} pointerEvents="none" aria-hidden="true">
-                <rect width="212" height="66" rx="8" fill="#0b1220" stroke="#475569" />
-                <text x="10" y="19" fill="#f1f5f9" fontSize="12" fontWeight="600">{item.name}</text>
-                <text x="10" y="38" fill="#cbd5e1" fontSize="10">{STATUS_LABEL[item.status]} · {item.category.name}</text>
-                <text x="10" y="55" fill="#94a3b8" fontSize="10">{item.products_count} продуктов · {item.leaders_count + item.experts_count} экспертов</text>
+                <rect width="212" height="66" rx="8" fill="var(--chart-tooltip)" stroke="var(--chart-border)" />
+                <text x="10" y="19" fill="var(--chart-tooltip-text)" fontSize="12" fontWeight="600">{item.name}</text>
+                <text x="10" y="38" fill="var(--chart-text)" fontSize="10">{STATUS_LABEL[item.status]} · {item.category.name}</text>
+                <text x="10" y="55" fill="var(--chart-muted)" fontSize="10">{item.products_count} продуктов · {item.leaders_count + item.experts_count} экспертов</text>
               </g>
             )
           })()}
@@ -140,6 +146,7 @@ export function TechnologyRadarChart({
         {items.map((item) => (
           <button key={item.id} onClick={() => open(item.id)} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-bg-panel">
             <span className="w-8 text-right font-mono text-xs" style={{ color: STATUS_COLOR[item.status] }}>{item.id}</span>
+            <TechnologyIcon slug={item.icon_slug} name={item.name} size={20} />
             <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{item.name}</span>
             {item.attention.has_attention && <span title="Требует внимания" className="text-amber-400">⚠</span>}
           </button>

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from sqlalchemy import (
     CheckConstraint,
@@ -45,8 +46,8 @@ class Assignment(Base, TimestampMixin):
     )
 
     # status: open | in_progress | done | cancelled
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="open", server_default="open", index=True
+    status: Mapped[Literal["open", "in_progress", "pending_review", "done", "cancelled"]] = (
+        mapped_column(String(20), nullable=False, default="open", server_default="open", index=True)
     )
 
     created_by_id: Mapped[int] = mapped_column(
@@ -61,12 +62,8 @@ class Assignment(Base, TimestampMixin):
     )
 
     # Вложение (опционально, ровно один файл).
-    attachment_filename: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
-    )
-    attachment_content_type: Mapped[str | None] = mapped_column(
-        String(100), nullable=True
-    )
+    attachment_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    attachment_content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     attachment_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     attachment_uploaded_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -74,6 +71,4 @@ class Assignment(Base, TimestampMixin):
     attachment_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
     # Когда статус перешёл в done — для аналитики «время выполнения».
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -14,18 +14,18 @@ const STATUS_LABEL: Record<DeptMaturityStatus, string> = {
   done: 'завершён',
 }
 const STATUS_CLR: Record<DeptMaturityStatus, string> = {
-  draft: 'text-amber-400',
-  done: 'text-emerald-400',
+  draft: 'text-warning',
+  done: 'text-success',
 }
 
 const DIR_COLORS = [
-  '#34d4c8',
-  '#60a5fa',
-  '#fbbf24',
-  '#a78bfa',
-  '#f87171',
-  '#86efac',
-  '#f472b6',
+  'var(--chart-primary)',
+  'var(--data-1)',
+  'var(--data-2)',
+  'var(--data-3)',
+  'var(--data-4)',
+  'var(--data-5)',
+  'var(--data-6)',
 ]
 
 function currentPeriod(): string {
@@ -142,7 +142,7 @@ function TotalChart({ surveys }: { surveys: DeptMaturitySurveyListItem[] }) {
                 y1={yOf(y)}
                 x2={W - PAD_R}
                 y2={yOf(y)}
-                stroke="#1f2937"
+                stroke="var(--chart-grid)"
                 strokeDasharray={y === 0 || y === 100 ? '0' : '2 3'}
               />
               <text
@@ -150,7 +150,7 @@ function TotalChart({ surveys }: { surveys: DeptMaturitySurveyListItem[] }) {
                 y={yOf(y) + 3}
                 textAnchor="end"
                 fontSize="10"
-                fill="#64748b"
+                fill="var(--chart-muted)"
               >
                 {y}
               </text>
@@ -162,11 +162,11 @@ function TotalChart({ surveys }: { surveys: DeptMaturitySurveyListItem[] }) {
               y1={PAD_T}
               x2={PAD_L + hoverIdx * xStep}
               y2={PAD_T + innerH}
-              stroke="#475569"
+              stroke="var(--chart-cursor)"
               strokeDasharray="3 3"
             />
           )}
-          <path d={path} stroke="#34d4c8" strokeWidth="2.5" fill="none" />
+          <path d={path} stroke="var(--chart-primary)" strokeWidth="2.5" fill="none" />
           {sorted.map((s, i) => {
             const x = PAD_L + i * xStep
             const isHov = hoverIdx === i
@@ -176,8 +176,8 @@ function TotalChart({ surveys }: { surveys: DeptMaturitySurveyListItem[] }) {
                   cx={x}
                   cy={yOf(s.total_rating)}
                   r={isHov ? 5 : 4}
-                  fill="#34d4c8"
-                  stroke={isHov ? '#0b1223' : 'none'}
+                  fill="var(--chart-primary)"
+                  stroke={isHov ? 'var(--chart-point-outline)' : 'none'}
                   strokeWidth={isHov ? 1.5 : 0}
                 />
                 <text
@@ -186,7 +186,7 @@ function TotalChart({ surveys }: { surveys: DeptMaturitySurveyListItem[] }) {
                   textAnchor="middle"
                   fontSize="11"
                   fontWeight="600"
-                  fill="#34d4c8"
+                  fill="var(--chart-primary)"
                 >
                   {s.total_rating.toFixed(0)}
                 </text>
@@ -196,7 +196,7 @@ function TotalChart({ surveys }: { surveys: DeptMaturitySurveyListItem[] }) {
                   textAnchor="middle"
                   fontSize="11"
                   fontWeight={isHov ? 700 : 400}
-                  fill={isHov ? '#e2e8f0' : '#94a3b8'}
+                  fill={isHov ? 'var(--chart-text)' : 'var(--chart-muted)'}
                 >
                   {s.period}
                 </text>
@@ -352,7 +352,7 @@ function DirectionsChart({
                 y1={yOf(y)}
                 x2={W - PAD_R}
                 y2={yOf(y)}
-                stroke="#1f2937"
+                stroke="var(--chart-grid)"
                 strokeDasharray={y === 0 || y === maxPerDir ? '0' : '2 3'}
               />
               <text
@@ -360,7 +360,7 @@ function DirectionsChart({
                 y={yOf(y) + 3}
                 textAnchor="end"
                 fontSize="10"
-                fill="#64748b"
+                fill="var(--chart-muted)"
               >
                 {y.toFixed(1)}
               </text>
@@ -372,7 +372,7 @@ function DirectionsChart({
               y1={PAD_T}
               x2={PAD_L + hoverIdx * xStep}
               y2={PAD_T + innerH}
-              stroke="#475569"
+              stroke="var(--chart-cursor)"
               strokeDasharray="3 3"
             />
           )}
@@ -405,7 +405,7 @@ function DirectionsChart({
                       cy={yOf(s.rating_by_direction[dc] ?? 0)}
                       r={isHov || highlight === dc ? 4 : 2.5}
                       fill={color}
-                      stroke={isHov ? '#0b1223' : 'none'}
+                      stroke={isHov ? 'var(--chart-point-outline)' : 'none'}
                       strokeWidth={isHov ? 1.5 : 0}
                     />
                   )
@@ -439,7 +439,7 @@ function DirectionsChart({
               textAnchor="middle"
               fontSize="11"
               fontWeight={hoverIdx === i ? 700 : 400}
-              fill={hoverIdx === i ? '#e2e8f0' : '#94a3b8'}
+              fill={hoverIdx === i ? 'var(--chart-text)' : 'var(--chart-muted)'}
             >
               {s.period}
             </text>
@@ -584,10 +584,10 @@ function RadarChart({
             <polygon
               points={ringPts}
               fill="none"
-              stroke="#1f2937"
+              stroke="var(--chart-grid)"
               strokeWidth={lvl === maxLevel ? 1.2 : 0.8}
             />
-            <text x={cx + 3} y={cy - r + 10} fontSize="9" fill="#475569">
+            <text x={cx + 3} y={cy - r + 10} fontSize="9" fill="var(--chart-cursor)">
               {lvl}
             </text>
           </g>
@@ -612,7 +612,7 @@ function RadarChart({
               y1={cy}
               x2={xEnd}
               y2={yEnd}
-              stroke="#1f2937"
+              stroke="var(--chart-grid)"
               strokeWidth="0.8"
             />
             <text
@@ -621,7 +621,7 @@ function RadarChart({
               fontSize="11"
               fontWeight="600"
               textAnchor={anchor}
-              fill="#cbd5e1"
+              fill="var(--chart-text)"
             >
               {dc}
             </text>
@@ -630,8 +630,8 @@ function RadarChart({
       })}
       <polygon
         points={polyPoints}
-        fill="rgba(52, 212, 200, 0.18)"
-        stroke="#34d4c8"
+        fill="color-mix(in srgb, var(--chart-primary) 18%, transparent)"
+        stroke="var(--chart-primary)"
         strokeWidth="1.8"
       />
       {codes.map((dc, i) => {
@@ -643,8 +643,8 @@ function RadarChart({
             cx={x}
             cy={y}
             r={3}
-            fill="#34d4c8"
-            stroke="#0b1223"
+            fill="var(--chart-primary)"
+            stroke="var(--chart-point-outline)"
             strokeWidth="0.8"
           >
             <title>
@@ -1008,14 +1008,14 @@ function SurveyEditor({
                                           style={{
                                             background:
                                               c.level === 1
-                                                ? '#ef4444'
+                                                ? 'var(--maturity-level-1)'
                                                 : c.level === 2
-                                                  ? '#f97316'
+                                                  ? 'var(--maturity-level-2)'
                                                   : c.level === 3
-                                                    ? '#eab308'
+                                                    ? 'var(--maturity-level-3)'
                                                     : c.level === 4
-                                                      ? '#22c55e'
-                                                      : '#3b82f6',
+                                                      ? 'var(--maturity-level-4)'
+                                                      : 'var(--maturity-level-5)',
                                           }}
                                         >
                                           {c.level}

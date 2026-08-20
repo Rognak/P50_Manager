@@ -7,6 +7,7 @@
   • ожидаемые role/grade (как fallback если вакансии нет),
   • явную философию «сильный инженер > узкоспециальное соответствие».
 """
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -59,9 +60,7 @@ async def build_screening_context(
     if grade_id:
         g = await session.get(Grade, grade_id)
         grade_code = g.code if g else None
-    lines.append(
-        f"Целевая позиция: роль {role_name or '—'}, грейд {grade_code or '—'}"
-    )
+    lines.append(f"Целевая позиция: роль {role_name or '—'}, грейд {grade_code or '—'}")
     lines.append("")
 
     if vacancy:
@@ -98,8 +97,7 @@ async def build_screening_context(
                 lines.append("")
     else:
         lines.append(
-            "(Вакансия не привязана — оценивайте по общей инженерной "
-            "силе и желаемой позиции.)"
+            "(Вакансия не привязана — оценивайте по общей инженерной силе и желаемой позиции.)"
         )
         lines.append("")
 

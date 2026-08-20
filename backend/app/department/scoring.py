@@ -21,6 +21,7 @@
   ключ = "{processCode}-{level}-{critIdx}", значение = "yes" | "no" | "na".
   Отсутствующий ключ трактуется как "no".
 """
+
 from __future__ import annotations
 
 import json
@@ -72,9 +73,7 @@ def _level_value(
     return yes / applicable
 
 
-def calc_marks(
-    template: dict[str, Any], answers: dict[str, str]
-) -> dict[str, Any]:
+def calc_marks(template: dict[str, Any], answers: dict[str, str]) -> dict[str, Any]:
     """Возвращает структуру:
     {
       "by_direction": {

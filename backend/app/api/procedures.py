@@ -426,9 +426,7 @@ async def export_preparation_docx(
     await _ensure_owner(session, employee_id, current_user)
     proc = await _load_procedure(session, employee_id, procedure_id)
     if not proc.preparation_md:
-        raise HTTPException(
-            status_code=404, detail="Материалы не сгенерированы"
-        )
+        raise HTTPException(status_code=404, detail="Материалы не сгенерированы")
     title = f"Материалы к процедуре «{proc.title}»"
     data = markdown_to_docx(proc.preparation_md, title)
     filename = f"{title[:80].replace('/', '_')}.docx"

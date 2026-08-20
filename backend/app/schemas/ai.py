@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -13,9 +13,9 @@ class AIGenParams(BaseModel):
     count: int = Field(3, ge=1, le=10)
     type: GenType = "mixed"
     difficulty: Difficulty = "target"
-    custom_level: int | None = Field(None, ge=0, le=5)
+    custom_level: Annotated[int | None, Field(ge=0, le=5)] = None
     format: AnswerFormat = "discussion"
-    time_budget_min: int = Field(15, ge=5, le=60)
+    time_budget_min: Annotated[int, Field(ge=5, le=60)] = 15
     custom_constraints: str = ""
     key_only: bool = False
 
@@ -57,12 +57,8 @@ class AISummaryResult(BaseModel):
 class AICandidateScreening(BaseModel):
     """Структурированный результат AI-скрининга резюме (качественная оценка)."""
 
-    recommended: bool = Field(
-        description="true = рекомендуется к собеседованию, false = нет"
-    )
-    reasoning_md: str = Field(
-        description="развёрнутое обоснование в markdown"
-    )
+    recommended: bool = Field(description="true = рекомендуется к собеседованию, false = нет")
+    reasoning_md: str = Field(description="развёрнутое обоснование в markdown")
 
 
 # ---------- Digital profile (структурированный) ----------------------------
@@ -76,8 +72,7 @@ class DigitalProfileItem(BaseModel):
     source: str | None = Field(
         default=None,
         description=(
-            "из каких данных пункт получен: «МПК+12 PR», «self-review», "
-            "«activity 90 дн» и т.п."
+            "из каких данных пункт получен: «МПК+12 PR», «self-review», «activity 90 дн» и т.п."
         ),
     )
 
@@ -88,7 +83,7 @@ class DigitalProfileGapRow(BaseModel):
     competency: str
     mpk_level: str = Field(description="L0..L5 или «—», если не задано в МПК")
     fact_summary: str = Field(
-        description='Кратко: «L1 (3 PR)» или «активно (4 PR), не учтено в МПК»'
+        description="Кратко: «L1 (3 PR)» или «активно (4 PR), не учтено в МПК»"
     )
     comment: str
 
@@ -112,9 +107,7 @@ class DigitalProfileResult(BaseModel):
     """Полный цифровой профиль сотрудника. JSON-схема жёсткая, AI обязан
     вернуть все поля. Пустые списки допустимы."""
 
-    headline: str = Field(
-        description="Одна фраза-выжимка для шапки (10-20 слов)"
-    )
+    headline: str = Field(description="Одна фраза-выжимка для шапки (10-20 слов)")
     summary: str = Field(description="1-2 абзаца общего описания")
     strengths: list[DigitalProfileItem] = Field(default_factory=list)
     weaknesses: list[DigitalProfileItem] = Field(default_factory=list)

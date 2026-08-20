@@ -26,14 +26,12 @@ async def _maybe_timeout(session, job: AIJob) -> AIJob:
     age = datetime.now(UTC) - (job.started_at or job.created_at)
     if age > timedelta(seconds=AI_JOB_TIMEOUT_SECONDS):
         job.status = "error"
-        job.error = (
-            f"Превышен таймаут ({AI_JOB_TIMEOUT_SECONDS // 60} мин) — "
-            "воркер не отчитался"
-        )
+        job.error = f"Превышен таймаут ({AI_JOB_TIMEOUT_SECONDS // 60} мин) — воркер не отчитался"
         job.finished_at = datetime.now(UTC)
         await session.commit()
         await session.refresh(job)
     return job
+
 
 router = APIRouter(
     prefix="/employees/{employee_id}/ai-jobs",
@@ -89,17 +87,6 @@ async def cancel_job(
     if job.status not in ("queued", "running"):
         # уже завершилась — отменять нечего
         return job
-
-    # Best-effort abort в ARQ-очереди (для queued)
-    if job.status == "queued":
-        try:
-            from app.redis_pool import get_pool
-
-            await get_pool().abort_job(str(job_id), timeout=0)
-        except Exception:
-            # ARQ-job_id у нас не совпадает с AIJob.id, так что это no-op
-            # в большинстве случаев. Главное — пометить в БД.
-            pass
 
     job.status = "error"
     job.error = "Отменено пользователем"

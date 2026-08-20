@@ -10,18 +10,17 @@ import {
 import { useReadOnly } from '../lib/auth-context'
 
 function ratingTone(r: number): string {
-  if (r >= 70) return 'text-emerald-400'
-  if (r >= 40) return 'text-accent'
-  if (r >= 20) return 'text-amber-400'
-  return 'text-rose-400'
+  if (r >= 70) return 'text-success'
+  if (r >= 40) return 'text-ink'
+  if (r >= 20) return 'text-warning'
+  return 'text-danger'
 }
 
 function ratingBg(r: number): string {
-  if (r <= 0) return 'rgba(148, 163, 184, 0.06)'
-  if (r < 20) return 'rgba(244, 63, 94, 0.32)'
-  if (r < 40) return 'rgba(244, 63, 94, 0.18)'
-  if (r < 70) return 'rgba(251, 191, 36, 0.32)'
-  return 'rgba(52, 212, 200, 0.42)'
+  if (r <= 0) return 'rgb(var(--color-surface-subtle))'
+  if (r < 40) return 'rgb(var(--color-danger-soft))'
+  if (r < 70) return 'rgb(var(--color-warning-soft))'
+  return 'rgb(var(--color-success-soft))'
 }
 
 export function DepartmentList() {

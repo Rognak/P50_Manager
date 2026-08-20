@@ -1,4 +1,5 @@
 """Модель AI-обзора performance продукта."""
+
 from datetime import date, datetime
 
 from sqlalchemy import Date, DateTime, ForeignKey, String, Text
@@ -23,9 +24,7 @@ class ProductPerformanceReview(Base, TimestampMixin):
         ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True
     )
     # status: queued | running | done | error
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="queued", index=True
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="queued", index=True)
     period_from: Mapped[date | None] = mapped_column(Date, nullable=True)
     period_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     # Старое свободное-текстовое поле (deprecated после перехода на JSON).
@@ -37,6 +36,4 @@ class ProductPerformanceReview(Base, TimestampMixin):
     created_by: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
-    finished_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

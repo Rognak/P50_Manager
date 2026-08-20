@@ -1,4 +1,5 @@
 """Pydantic-схемы админ-панели."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -128,6 +129,23 @@ class ExternalLinksUpdate(BaseModel):
     links: list[ExternalLink]
 
 
+# ----- technology catalog --------------------------------------------------
+
+
+class TechnologyCatalogEntryPublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    technology_id: str
+    name: str
+    type: str
+    aliases: str | None
+    ecosystem: str
+    detectability: Literal["high", "medium", "low"]
+    manifest_signals: str | None
+    code_signals: str | None
+    notes: str | None
+
+
 # ----- integrations / feature flags ----------------------------------------
 
 
@@ -156,6 +174,21 @@ class CodeBuddyHealthResponse(BaseModel):
 
 class CacheInvalidateResult(BaseModel):
     deleted: int
+
+
+class GitLabConfigResponse(BaseModel):
+    """Безопасное представление GitLab-конфига без самого токена."""
+
+    base_url: str
+    api_token_set: bool
+    api_token_source: Literal["admin", "env", "none"]
+    auto_sync_enabled: bool = True
+
+
+class GitLabConfigUpdate(BaseModel):
+    # Пустая строка / None — оставить текущий токен без изменений.
+    api_token: str | None = None
+    auto_sync_enabled: bool = True
 
 
 class LLMConfigResponse(BaseModel):

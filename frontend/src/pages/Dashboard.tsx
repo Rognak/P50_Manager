@@ -15,13 +15,14 @@ function Tile({
   label: string
   value: string | number
   hint?: ReactNode
-  tone?: 'default' | 'good' | 'warn' | 'bad'
+  tone?: 'default' | 'primary' | 'good' | 'warn' | 'bad'
 }) {
   const valueColor = {
-    default: 'text-accent',
-    good: 'text-emerald-400',
-    warn: 'text-amber-400',
-    bad: 'text-rose-400',
+    default: 'metric-default',
+    primary: 'metric-primary',
+    good: 'metric-good',
+    warn: 'metric-warn',
+    bad: 'metric-bad',
   }[tone]
   return (
     <div className="rounded-2xl bg-bg-elevated p-5">
@@ -95,7 +96,7 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   return (
     <div className="h-2 w-full overflow-hidden rounded-full bg-bg-panel">
       <div
-        className="h-full rounded-full bg-accent transition-all"
+        className="metric-primary-bg h-full rounded-full transition-all"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -233,7 +234,7 @@ export function Dashboard() {
 
   const ratio = m.employees_total > 0 ? m.assessed_last_12m / m.employees_total : 0
   const cycleTone =
-    ratio >= 0.9 ? 'good' : ratio >= 0.5 ? 'default' : 'warn'
+    ratio >= 0.9 ? 'good' : ratio >= 0.5 ? 'primary' : 'warn'
 
   const TAB_BADGES: Record<DashTab, number | null> = {
     team: team ? team.without_role + team.without_grade : null,
@@ -318,6 +319,7 @@ export function Dashboard() {
                   <Tile
                     label="Активных сотрудников"
                     value={team.total_active}
+                    tone="primary"
                     hint={
                       team.total_all_time !== team.total_active
                         ? `всего за всё время: ${team.total_all_time}`
@@ -365,6 +367,7 @@ export function Dashboard() {
                         ? `${team.without_hire_date} без даты найма`
                         : undefined
                     }
+                    tone="primary"
                   />
                   <Tile
                     label="Стажёров"
@@ -402,7 +405,7 @@ export function Dashboard() {
                             </span>
                             <div className="h-3 flex-1 overflow-hidden rounded-full bg-bg-panel">
                               <div
-                                className="h-full rounded-full bg-accent transition-all"
+                                className="grade-distribution-bar h-full rounded-full transition-all"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
@@ -819,7 +822,7 @@ export function Dashboard() {
         {(m.self_review_pending > 0 ||
           m.self_review_stuck_submitted > 0 ||
           m.self_review_stale_drafts > 0) && (
-          <div className="mt-3 rounded-xl bg-amber-500/10 px-4 py-3 text-xs text-amber-200 ring-1 ring-amber-500/20">
+          <div className="attention-banner mt-3 rounded-xl bg-amber-500/10 px-4 py-3 text-xs text-amber-200 ring-1 ring-amber-500/20">
             <div className="font-semibold">Требует внимания</div>
             <ul className="mt-1 space-y-0.5">
               {m.self_review_pending > 0 && (
@@ -1074,7 +1077,7 @@ export function Dashboard() {
 
           <section>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Разработка (CodeBuddy · последние 90 дней)
+              Разработка (CodeBuddy)
             </h2>
             <DevActivityWidget managerId={effectiveManagerId} />
           </section>

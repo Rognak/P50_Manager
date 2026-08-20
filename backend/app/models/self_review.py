@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from sqlalchemy import (
     DateTime,
@@ -33,7 +34,7 @@ class SelfReview(Base, TimestampMixin):
     )
     year: Mapped[int] = mapped_column(Integer, nullable=False)
     # status: draft | submitted | closed
-    status: Mapped[str] = mapped_column(
+    status: Mapped[Literal["draft", "submitted", "closed"]] = mapped_column(
         String(20), nullable=False, default="draft", index=True
     )
 
@@ -61,12 +62,8 @@ class SelfReview(Base, TimestampMixin):
     ai_calibration_md: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_drafting_md: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    submitted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    closed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Дата/время запланированной 1:1 встречи по обсуждению ревью.
     scheduled_1on1_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

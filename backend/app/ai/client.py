@@ -4,6 +4,7 @@
 fallback на значения из `.env` (`AI_*`). Так LLM можно переключать прямо в UI
 без правки переменных окружения и перезапуска процессов.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -52,11 +53,7 @@ def make_client(cfg: AIConfig) -> AsyncOpenAI | None:
         return None
     # У LLM-эндпоинта может быть self-signed сертификат — тогда подсовываем
     # свой httpx-клиент без верификации SSL (cfg.verify_ssl=False).
-    http_client = (
-        None
-        if cfg.verify_ssl
-        else httpx.AsyncClient(verify=False, timeout=cfg.timeout)
-    )
+    http_client = None if cfg.verify_ssl else httpx.AsyncClient(verify=False, timeout=cfg.timeout)
     client = AsyncOpenAI(
         base_url=cfg.base_url,
         api_key=cfg.api_key,

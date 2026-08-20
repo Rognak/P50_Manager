@@ -4,6 +4,7 @@
 либо на Employee (своего сотрудника). Видеть и менять статус — обе стороны.
 Менять основные поля и удалять — только создатель.
 """
+
 from datetime import UTC, datetime
 from urllib.parse import quote
 
@@ -38,9 +39,7 @@ ATTACH_MAX_BYTES = 20 * 1024 * 1024  # 20 МБ
 # ---------- helpers ----------
 
 
-async def _build_assignee_ref(
-    session, a: Assignment
-) -> AssigneeRef:
+async def _build_assignee_ref(session, a: Assignment) -> AssigneeRef:
     if a.assignee_user_id is not None:
         u = await session.get(User, a.assignee_user_id)
         return AssigneeRef(
@@ -97,8 +96,8 @@ async def _to_list_item(session, a: Assignment) -> AssignmentListItem:
 
 def _can_assign_to_employee(user: User, employee: Employee) -> bool:
     """Кто может поручать сотруднику:
-      • CoreTeam — любому;
-      • руководитель отдела — только своему (employee.owner_id == self.id).
+    • CoreTeam — любому;
+    • руководитель отдела — только своему (employee.owner_id == self.id).
     """
     if is_core_team(user):
         return True
@@ -124,9 +123,7 @@ def _can_view(actor: User, a: Assignment) -> bool:
     return False
 
 
-async def _assignee_employee_owner_id(
-    session, a: Assignment
-) -> int | None:
+async def _assignee_employee_owner_id(session, a: Assignment) -> int | None:
     if a.assignee_employee_id is None:
         return None
     emp = await session.get(Employee, a.assignee_employee_id)
@@ -161,9 +158,7 @@ def _can_edit(actor: User, a: Assignment) -> bool:
     return a.created_by_id == actor.id
 
 
-def _is_assignee_actor(
-    actor: User, a: Assignment, owner_id: int | None
-) -> bool:
+def _is_assignee_actor(actor: User, a: Assignment, owner_id: int | None) -> bool:
     """Является ли actor адресатом-User или владельцем Employee-адресата."""
     if a.assignee_user_id == actor.id:
         return True
@@ -310,11 +305,7 @@ async def create_assignment(
     if a.assignee_employee_id:
         emp = await session.get(Employee, a.assignee_employee_id)
         emp_name = emp.full_name if emp else None
-    body_target = (
-        "вам"
-        if a.assignee_user_id is not None
-        else f"сотруднику «{emp_name}»"
-    )
+    body_target = "вам" if a.assignee_user_id is not None else f"сотруднику «{emp_name}»"
     notifs = await record_notifications(
         session,
         recipient_user_ids=targets,
@@ -333,9 +324,7 @@ async def create_assignment(
 
 
 @router.get("/{assignment_id}", response_model=AssignmentPublic)
-async def get_assignment(
-    assignment_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def get_assignment(assignment_id: int, session: SessionDep, current_user: CurrentUser):
     a = await session.get(Assignment, assignment_id)
     if a is None:
         raise HTTPException(status_code=404, detail="Поручение не найдено")
@@ -448,9 +437,7 @@ async def update_assignment(
 
 
 @router.delete("/{assignment_id}", status_code=204)
-async def delete_assignment(
-    assignment_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def delete_assignment(assignment_id: int, session: SessionDep, current_user: CurrentUser):
     a = await session.get(Assignment, assignment_id)
     if a is None:
         raise HTTPException(status_code=404, detail="Поручение не найдено")
@@ -465,7 +452,7 @@ async def delete_assignment(
 
 def _attach_disposition(filename: str) -> str:
     fallback = filename.encode("ascii", "ignore").decode("ascii") or "attachment"
-    return f'attachment; filename="{fallback}"; filename*=UTF-8\'\'{quote(filename)}'
+    return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}"
 
 
 @router.post("/{assignment_id}/attachment", response_model=AssignmentPublic)
@@ -479,9 +466,7 @@ async def upload_attachment(
     if a is None:
         raise HTTPException(status_code=404, detail="Поручение не найдено")
     if not _can_edit(current_user, a):
-        raise HTTPException(
-            status_code=403, detail="Загружать вложение может только создатель"
-        )
+        raise HTTPException(status_code=403, detail="Загружать вложение может только создатель")
     data = await file.read()
     if not data:
         raise HTTPException(status_code=400, detail="Пустой файл")
@@ -498,9 +483,7 @@ async def upload_attachment(
 
 
 @router.get("/{assignment_id}/attachment")
-async def download_attachment(
-    assignment_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def download_attachment(assignment_id: int, session: SessionDep, current_user: CurrentUser):
     a = await session.get(Assignment, assignment_id)
     if a is None or a.attachment_data is None:
         raise HTTPException(status_code=404, detail="Вложение не найдено")
@@ -510,17 +493,13 @@ async def download_attachment(
         content=a.attachment_data,
         media_type=a.attachment_content_type or "application/octet-stream",
         headers={
-            "Content-Disposition": _attach_disposition(
-                a.attachment_filename or "attachment"
-            ),
+            "Content-Disposition": _attach_disposition(a.attachment_filename or "attachment"),
         },
     )
 
 
 @router.delete("/{assignment_id}/attachment", response_model=AssignmentPublic)
-async def delete_attachment(
-    assignment_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def delete_attachment(assignment_id: int, session: SessionDep, current_user: CurrentUser):
     a = await session.get(Assignment, assignment_id)
     if a is None:
         raise HTTPException(status_code=404, detail="Поручение не найдено")

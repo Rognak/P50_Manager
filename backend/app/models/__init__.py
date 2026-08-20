@@ -25,11 +25,19 @@ from app.models.self_review import SelfReview
 from app.models.tech_maturity import TechMaturitySurvey
 from app.models.technology import (
     Technology,
+    TechnologyCatalogEntry,
     TechnologyCategory,
+    TechnologyCompetency,
     TechnologyDecision,
     TechnologyLink,
     TechnologyMember,
+    TechnologyNewsItem,
+    TechnologyNewsSource,
+    TechnologyPackageMapping,
     TechnologyProduct,
+    TechnologyProjectVersionEvidence,
+    TechnologyProposal,
+    TechnologyVulnerabilitySnapshot,
 )
 from app.models.vacancy import Vacancy
 from app.models.mpk import (
@@ -91,11 +99,19 @@ __all__ = [
     "SystemSetting",
     "TechMaturitySurvey",
     "Technology",
+    "TechnologyCatalogEntry",
     "TechnologyCategory",
+    "TechnologyCompetency",
     "TechnologyDecision",
     "TechnologyLink",
     "TechnologyMember",
+    "TechnologyNewsItem",
+    "TechnologyNewsSource",
+    "TechnologyPackageMapping",
     "TechnologyProduct",
+    "TechnologyProjectVersionEvidence",
+    "TechnologyProposal",
+    "TechnologyVulnerabilitySnapshot",
     "User",
     "Vacancy",
 ]

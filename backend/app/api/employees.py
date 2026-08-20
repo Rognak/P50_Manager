@@ -59,9 +59,7 @@ async def _load_employee(session, employee_id: int, current_user) -> Employee:
         .where(Employee.id == employee_id, Employee.kind == "employee")
     )
     employee = q.scalar_one_or_none()
-    if employee is None or not can_view_employee_owned_by(
-        current_user, employee.owner_id
-    ):
+    if employee is None or not can_view_employee_owned_by(current_user, employee.owner_id):
         raise HTTPException(status_code=404, detail="Сотрудник не найден")
     return employee
 
@@ -111,9 +109,7 @@ async def _enqueue_codebuddy_sync(
         return
     for eid in employee_ids:
         try:
-            await pool.enqueue_job(
-                "run_codebuddy_sync_projects", eid, all_time
-            )
+            await pool.enqueue_job("run_codebuddy_sync_projects", eid, all_time)
         except Exception as e:  # noqa: BLE001
             logger.warning("enqueue codebuddy sync for emp #%s failed: %s", eid, e)
 
@@ -131,9 +127,7 @@ async def create_employee(
     )
     session.add(employee)
     await session.commit()
-    await session.refresh(
-        employee, attribute_names=["role", "grade", "department", "owner"]
-    )
+    await session.refresh(employee, attribute_names=["role", "grade", "department", "owner"])
     # Запускаем фоновый all-time синк проектов из CodeBuddy.
     await _enqueue_codebuddy_sync(session, [employee.id], all_time=True)
     return employee
@@ -157,9 +151,7 @@ async def update_employee(
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(employee, key, value)
     await session.commit()
-    await session.refresh(
-        employee, attribute_names=["role", "grade", "department", "owner"]
-    )
+    await session.refresh(employee, attribute_names=["role", "grade", "department", "owner"])
     return employee
 
 
@@ -208,15 +200,11 @@ async def preview_import_xlsx(
     получают `action='skip'`.
     """
     if not file.filename or not file.filename.lower().endswith(".xlsx"):
-        raise HTTPException(
-            status_code=400, detail="Ожидается файл .xlsx"
-        )
+        raise HTTPException(status_code=400, detail="Ожидается файл .xlsx")
     dept_id = await _validate_owned_department(session, department_id, current_user)
     content = await file.read()
     try:
-        rows = await parse_xlsx(
-            content, session, owner_id=current_user.id, department_id=dept_id
-        )
+        rows = await parse_xlsx(content, session, owner_id=current_user.id, department_id=dept_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -278,9 +266,7 @@ async def commit_import_xlsx(
         created += 1
     await session.commit()
     # all-time синк проектов для всех новеньких в фоне (ARQ-очередь).
-    await _enqueue_codebuddy_sync(
-        session, [e.id for e in new_employees], all_time=True
-    )
+    await _enqueue_codebuddy_sync(session, [e.id for e in new_employees], all_time=True)
     return EmployeeImportResult(created=created, skipped=skipped, errors=errors)
 
 
@@ -348,7 +334,9 @@ async def mpk_profile(employee_id: int, session: SessionDep, current_user: Curre
     return MpkProfile(
         items=items,
         last_assessment=(
-            MpkProfileAssessmentRef(id=last_assessment.id, assessed_at=str(last_assessment.assessed_at))
+            MpkProfileAssessmentRef(
+                id=last_assessment.id, assessed_at=str(last_assessment.assessed_at)
+            )
             if last_assessment
             else None
         ),
@@ -361,9 +349,7 @@ async def mpk_profile(employee_id: int, session: SessionDep, current_user: Curre
     "/{employee_id}/projects",
     response_model=list[EmployeeProjectHistoryItem],
 )
-async def employee_projects(
-    employee_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def employee_projects(employee_id: int, session: SessionDep, current_user: CurrentUser):
     """История продуктов сотрудника: текущие (left_at IS NULL) + завершённые.
     Сортировка: текущие первыми (по joined_at desc), затем прошлые (по left_at desc).
     """

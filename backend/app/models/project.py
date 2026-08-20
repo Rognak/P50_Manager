@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 
 from sqlalchemy import (
     Boolean,
@@ -23,12 +24,13 @@ class Product(Base, TimestampMixin):
     вакансии) живут на уровне Product, а Project (репо) даёт только
     dev-метрики и PR-ы по конкретному репозиторию.
     """
+
     __tablename__ = "products"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(
+    status: Mapped[Literal["active", "on_hold", "completed"]] = mapped_column(
         String(20), nullable=False, default="active"
     )
     started_at: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -47,9 +49,7 @@ class Product(Base, TimestampMixin):
         String(255), nullable=True, unique=True, index=True
     )
 
-    projects: Mapped[list["Project"]] = relationship(
-        back_populates="product"
-    )
+    projects: Mapped[list["Project"]] = relationship(back_populates="product")
 
 
 class Project(Base, TimestampMixin):
@@ -59,7 +59,9 @@ class Project(Base, TimestampMixin):
     code: Mapped[str | None] = mapped_column(String(50), nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    status: Mapped[Literal["active", "on_hold", "completed"]] = mapped_column(
+        String(20), nullable=False, default="active"
+    )
     started_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     finished_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_by: Mapped[int] = mapped_column(
@@ -81,18 +83,12 @@ class Project(Base, TimestampMixin):
     # GitLab project ID для фильтрации запросов в CodeBuddy (`?projectId=...`).
     # Без него агрегаты CodeBuddy на уровне проекта не отфильтровать на стороне
     # CodeBuddy — придётся тянуть всё и фильтровать у себя по projectName.
-    gitlab_project_id: Mapped[int | None] = mapped_column(
-        Integer, nullable=True, index=True
-    )
+    gitlab_project_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     # Полный путь GitLab-группы (без имени репо) — извлекается из MR url.
     # DEPRECATED: дублирует Product.gitlab_group. Оставлено на этап миграции.
-    gitlab_group: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, index=True
-    )
+    gitlab_group: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
 
-    product: Mapped["Product | None"] = relationship(
-        back_populates="projects"
-    )
+    product: Mapped["Product | None"] = relationship(back_populates="projects")
     members: Mapped[list["ProjectMember"]] = relationship(
         back_populates="project",
         cascade="all, delete-orphan",
@@ -151,6 +147,7 @@ class ProjectMember(Base, TimestampMixin):
     """DEPRECATED после этапа 2 — данные мигрированы в product_members.
     Таблица оставлена для безопасного rollback и будет удалена в этапе 5.
     """
+
     __tablename__ = "project_members"
     __table_args__ = (UniqueConstraint("project_id", "employee_id"),)
 

@@ -31,7 +31,7 @@ function Tile({
   return (
     <div className="rounded-2xl bg-bg-elevated p-4 ring-1 ring-white/5">
       <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-accent">{value}</div>
+      <div className="mt-1 text-2xl font-semibold text-slate-200">{value}</div>
       {hint && <div className="mt-1 text-[11px] text-slate-500">{hint}</div>}
     </div>
   )

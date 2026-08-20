@@ -41,6 +41,7 @@ def _to_list_item(a: Assessment) -> dict:
         "meeting_ids": [m.id for m in a.meetings],
     }
 
+
 router = APIRouter(prefix="/employees/{employee_id}/assessments", tags=["assessments"])
 
 

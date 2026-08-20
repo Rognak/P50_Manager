@@ -55,8 +55,7 @@ async def me(session: SessionDep, current_user: CurrentUser) -> UserMe:
     """Профиль + карта видимости nav + внешние ссылки для шапки (один round-trip)."""
     visibility = await get_nav_visibility(session)
     nav: dict[str, bool] = {
-        k: is_nav_visible_for_role(k, current_user.role, visibility)
-        for k in _NAV_KEYS
+        k: is_nav_visible_for_role(k, current_user.role, visibility) for k in _NAV_KEYS
     }
     links = await get_external_links(session)
     return UserMe(

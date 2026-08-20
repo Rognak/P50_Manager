@@ -23,7 +23,7 @@ function timeAgo(iso: string): string {
 const KIND_DOT: Record<string, string> = {
   // assignments
   assignment_created: 'bg-accent',
-  assignment_pending_review: 'bg-violet-400',
+  assignment_pending_review: 'bg-ink-muted',
   assignment_done: 'bg-emerald-400',
   assignment_returned: 'bg-amber-400',
   assignment_cancelled: 'bg-slate-400',

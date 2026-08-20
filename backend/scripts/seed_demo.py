@@ -7,6 +7,7 @@
 Использование:
     uv run python -m scripts.seed_demo
 """
+
 import asyncio
 import random
 import sys
@@ -31,16 +32,107 @@ ADMIN_EMAIL = "admin@example.com"
 DEMO: list[dict] = [
     # perf: +/-0.X — шаг роста уровня между оценками (+ растёт / − проседает)
     # hired_at указывается в годах назад от текущей даты (на момент запуска seed)
-    {"full_name": "Демо Сотрудник 01", "position": "Ведущий специалист по разработке", "email": "ivanov@demo.local", "role": "Backend Python разработчик", "grade": "Middle", "perf": 0.25, "n": 3, "hired_years_ago": 2.5},
-    {"full_name": "Демо Сотрудник 02", "position": "Главный специалист по разработке", "email": "petrova@demo.local", "role": "Frontend web разработчик", "grade": "Senior", "perf": 0.20, "n": 4, "hired_years_ago": 5.5},
-    {"full_name": "Демо Сотрудник 03", "position": "Ведущий специалист по разработке", "email": "sidorov@demo.local", "role": "DevOps инженер", "grade": "Middle+", "perf": -0.30, "n": 3, "hired_years_ago": 4.0},
-    {"full_name": "Демо Сотрудник 04", "position": "Специалист по разработке", "email": "volkova@demo.local", "role": "Системный аналитик", "grade": "Junior+", "perf": 0.40, "n": 2, "hired_years_ago": 1.2},
-    {"full_name": "Демо Сотрудник 05", "position": "Главный специалист по разработке", "email": "kozlov@demo.local", "role": "Backend Java разработчик", "grade": "Senior+", "perf": 0.10, "n": 4, "hired_years_ago": 7.0},
-    {"full_name": "Демо Сотрудник 06", "position": "Ведущий специалист по разработке", "email": "morozova@demo.local", "role": "Тестировщик", "grade": "Middle", "perf": 0.00, "n": 3, "hired_years_ago": 3.0},
-    {"full_name": "Демо Сотрудник 07", "position": "Специалист по разработке", "email": "novikov@demo.local", "role": "Backend Python разработчик", "grade": "Junior", "perf": 0.50, "n": 2, "hired_years_ago": 0.4},
-    {"full_name": "Демо Сотрудник 08", "position": "Ведущий специалист по разработке", "email": "sokolova@demo.local", "role": "Mobile iOS разработчик", "grade": "Middle+", "perf": 0.15, "n": 3, "hired_years_ago": 3.8},
-    {"full_name": "Демо Сотрудник 09", "position": "Ведущий специалист по разработке", "email": "lebedev@demo.local", "role": "Frontend web разработчик", "grade": "Middle", "perf": -0.40, "n": 3, "hired_years_ago": 2.2, "left_months_ago": 0.5},
-    {"full_name": "Демо Сотрудник 10", "position": "Главный специалист по разработке", "email": "kuznetsov@demo.local", "role": "Backend Python разработчик", "grade": "Senior", "perf": 0.05, "n": 4, "hired_years_ago": 6.5},
+    {
+        "full_name": "Демо Сотрудник 01",
+        "position": "Ведущий специалист по разработке",
+        "email": "ivanov@demo.local",
+        "role": "Backend Python разработчик",
+        "grade": "Middle",
+        "perf": 0.25,
+        "n": 3,
+        "hired_years_ago": 2.5,
+    },
+    {
+        "full_name": "Демо Сотрудник 02",
+        "position": "Главный специалист по разработке",
+        "email": "petrova@demo.local",
+        "role": "Frontend web разработчик",
+        "grade": "Senior",
+        "perf": 0.20,
+        "n": 4,
+        "hired_years_ago": 5.5,
+    },
+    {
+        "full_name": "Демо Сотрудник 03",
+        "position": "Ведущий специалист по разработке",
+        "email": "sidorov@demo.local",
+        "role": "DevOps инженер",
+        "grade": "Middle+",
+        "perf": -0.30,
+        "n": 3,
+        "hired_years_ago": 4.0,
+    },
+    {
+        "full_name": "Демо Сотрудник 04",
+        "position": "Специалист по разработке",
+        "email": "volkova@demo.local",
+        "role": "Системный аналитик",
+        "grade": "Junior+",
+        "perf": 0.40,
+        "n": 2,
+        "hired_years_ago": 1.2,
+    },
+    {
+        "full_name": "Демо Сотрудник 05",
+        "position": "Главный специалист по разработке",
+        "email": "kozlov@demo.local",
+        "role": "Backend Java разработчик",
+        "grade": "Senior+",
+        "perf": 0.10,
+        "n": 4,
+        "hired_years_ago": 7.0,
+    },
+    {
+        "full_name": "Демо Сотрудник 06",
+        "position": "Ведущий специалист по разработке",
+        "email": "morozova@demo.local",
+        "role": "Тестировщик",
+        "grade": "Middle",
+        "perf": 0.00,
+        "n": 3,
+        "hired_years_ago": 3.0,
+    },
+    {
+        "full_name": "Демо Сотрудник 07",
+        "position": "Специалист по разработке",
+        "email": "novikov@demo.local",
+        "role": "Backend Python разработчик",
+        "grade": "Junior",
+        "perf": 0.50,
+        "n": 2,
+        "hired_years_ago": 0.4,
+    },
+    {
+        "full_name": "Демо Сотрудник 08",
+        "position": "Ведущий специалист по разработке",
+        "email": "sokolova@demo.local",
+        "role": "Mobile iOS разработчик",
+        "grade": "Middle+",
+        "perf": 0.15,
+        "n": 3,
+        "hired_years_ago": 3.8,
+    },
+    {
+        "full_name": "Демо Сотрудник 09",
+        "position": "Ведущий специалист по разработке",
+        "email": "lebedev@demo.local",
+        "role": "Frontend web разработчик",
+        "grade": "Middle",
+        "perf": -0.40,
+        "n": 3,
+        "hired_years_ago": 2.2,
+        "left_months_ago": 0.5,
+    },
+    {
+        "full_name": "Демо Сотрудник 10",
+        "position": "Главный специалист по разработке",
+        "email": "kuznetsov@demo.local",
+        "role": "Backend Python разработчик",
+        "grade": "Senior",
+        "perf": 0.05,
+        "n": 4,
+        "hired_years_ago": 6.5,
+    },
 ]
 
 
@@ -77,9 +169,7 @@ async def main() -> None:
             sys.exit(1)
 
         # wipe admin's employees (каскад снесёт их assessments)
-        await session.execute(
-            delete(Employee).where(Employee.owner_id == admin.id)
-        )
+        await session.execute(delete(Employee).where(Employee.owner_id == admin.id))
         await session.flush()
 
         emps_n = 0
@@ -89,7 +179,9 @@ async def main() -> None:
             role = roles.get(item["role"])
             grade = grades.get(item["grade"])
             if role is None or grade is None:
-                print(f"!! пропуск {item['full_name']}: роль/грейд не найдены ({item['role']}/{item['grade']})")
+                print(
+                    f"!! пропуск {item['full_name']}: роль/грейд не найдены ({item['role']}/{item['grade']})"
+                )
                 continue
 
             today = date.today()

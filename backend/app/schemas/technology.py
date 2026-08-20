@@ -8,8 +8,14 @@ TechnologyMemberRole = Literal["leader", "expert", "practitioner"]
 TechnologyMemberSource = Literal["manual", "inferred"]
 TechnologyUsageType = Literal["production", "pilot", "evaluation", "legacy"]
 TechnologyLinkKind = Literal[
-    "documentation", "methodology", "guide", "course",
-    "community", "source", "article", "other",
+    "documentation",
+    "methodology",
+    "guide",
+    "course",
+    "community",
+    "source",
+    "article",
+    "other",
 ]
 
 
@@ -37,6 +43,7 @@ class TechnologyMetaResponse(BaseModel):
 
 class TechnologyCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
+    icon_slug: str | None = Field(default=None, max_length=100)
     category_id: int
     description_md: str | None = None
     status: TechnologyStatus
@@ -47,6 +54,7 @@ class TechnologyCreate(BaseModel):
 
 class TechnologyUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
+    icon_slug: str | None = Field(default=None, max_length=100)
     category_id: int | None = None
     description_md: str | None = None
     replacement_technology_id: int | None = None
@@ -89,6 +97,7 @@ class TechnologyAttentionFlags(BaseModel):
 class TechnologyListItem(BaseModel):
     id: int
     name: str
+    icon_slug: str | None
     category: TechnologyCategoryPublic
     status: TechnologyStatus
     status_reason_md: str | None
@@ -196,6 +205,7 @@ class TechnologyPublic(TechnologyListItem):
 class ProductTechnologyPublic(BaseModel):
     technology_id: int
     technology_name: str
+    icon_slug: str | None
     category: TechnologyCategoryPublic
     status: TechnologyStatus
     usage_type: TechnologyUsageType
@@ -212,6 +222,7 @@ class EmployeeTechnologyProductRef(BaseModel):
 class EmployeeTechnologyPublic(BaseModel):
     technology_id: int
     technology_name: str
+    icon_slug: str | None
     category: TechnologyCategoryPublic
     status: TechnologyStatus
     member_role: TechnologyMemberRole

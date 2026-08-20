@@ -9,12 +9,14 @@
 
 Запуск:  uv run python -m scripts.seed_departments
 """
+
 import asyncio
 import random
 import sys
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import delete, select, update
+from sqlalchemy.engine import CursorResult
 
 from app.core.security import hash_password
 from app.db import SessionLocal
@@ -68,7 +70,15 @@ DEPARTMENTS: list[dict] = [
         "owner_email": ADMIN_EMAIL,
         "owner_full_name": "Демо Руководитель 1",
         "scenario": SCENARIO_GROWING,
-        "profile": {"CON": 1.0, "STU": 1.05, "SKI": 1.05, "IMP": 1.0, "ROT": 0.85, "SOR": 0.95, "MET": 1.10},
+        "profile": {
+            "CON": 1.0,
+            "STU": 1.05,
+            "SKI": 1.05,
+            "IMP": 1.0,
+            "ROT": 0.85,
+            "SOR": 0.95,
+            "MET": 1.10,
+        },
         "assign_owner_emails": [ADMIN_EMAIL],
     },
     {
@@ -77,7 +87,15 @@ DEPARTMENTS: list[dict] = [
         "owner_email": "lead_qa@demo.local",
         "owner_full_name": None,  # уже создан в seed_other_managers
         "scenario": SCENARIO_MATURE,
-        "profile": {"CON": 1.20, "STU": 0.90, "SKI": 1.0, "IMP": 0.90, "ROT": 0.80, "SOR": 0.75, "MET": 1.20},
+        "profile": {
+            "CON": 1.20,
+            "STU": 0.90,
+            "SKI": 1.0,
+            "IMP": 0.90,
+            "ROT": 0.80,
+            "SOR": 0.75,
+            "MET": 1.20,
+        },
         "assign_owner_emails": ["lead_qa@demo.local"],
     },
     {
@@ -86,7 +104,15 @@ DEPARTMENTS: list[dict] = [
         "owner_email": "lead_mobile@demo.local",
         "owner_full_name": None,
         "scenario": SCENARIO_NEW,
-        "profile": {"CON": 0.85, "STU": 1.20, "SKI": 1.10, "IMP": 1.0, "ROT": 0.65, "SOR": 0.80, "MET": 0.85},
+        "profile": {
+            "CON": 0.85,
+            "STU": 1.20,
+            "SKI": 1.10,
+            "IMP": 1.0,
+            "ROT": 0.65,
+            "SOR": 0.80,
+            "MET": 0.85,
+        },
         "assign_owner_emails": ["lead_mobile@demo.local"],
     },
     {
@@ -95,7 +121,15 @@ DEPARTMENTS: list[dict] = [
         "owner_email": "lead_frontend@demo.local",
         "owner_full_name": "Демо Руководитель 2",
         "scenario": SCENARIO_GROWING,
-        "profile": {"CON": 0.95, "STU": 1.0, "SKI": 1.15, "IMP": 1.05, "ROT": 0.95, "SOR": 0.75, "MET": 0.95},
+        "profile": {
+            "CON": 0.95,
+            "STU": 1.0,
+            "SKI": 1.15,
+            "IMP": 1.05,
+            "ROT": 0.95,
+            "SOR": 0.75,
+            "MET": 0.95,
+        },
         "assign_owner_emails": [],
     },
     {
@@ -104,7 +138,15 @@ DEPARTMENTS: list[dict] = [
         "owner_email": "lead_sa@demo.local",
         "owner_full_name": "Демо Руководитель 3",
         "scenario": SCENARIO_STUCK,
-        "profile": {"CON": 1.05, "STU": 1.0, "SKI": 1.0, "IMP": 1.10, "ROT": 0.85, "SOR": 0.90, "MET": 1.0},
+        "profile": {
+            "CON": 1.05,
+            "STU": 1.0,
+            "SKI": 1.0,
+            "IMP": 1.10,
+            "ROT": 0.85,
+            "SOR": 0.90,
+            "MET": 1.0,
+        },
         "assign_owner_emails": [],
     },
 ]
@@ -157,9 +199,7 @@ def _build_answers(
             pcode = proc["code"]
             for c in template["criteria"]:
                 lvl = c["level"]
-                base = (
-                    level_fractions[lvl - 1] if lvl - 1 < len(level_fractions) else 0.0
-                )
+                base = level_fractions[lvl - 1] if lvl - 1 < len(level_fractions) else 0.0
                 p_yes = max(0.0, min(1.0, base * mul))
                 # Bernoulli — реалистичнее, чем фиксированная доля
                 v = "yes" if random.random() < p_yes else "no"
@@ -167,14 +207,10 @@ def _build_answers(
     return answers
 
 
-async def _ensure_user(
-    session, email: str, full_name: str | None
-) -> User:
+async def _ensure_user(session, email: str, full_name: str | None) -> User:
     """Найти/создать пользователя. Возвращает существующего если есть; если
     `full_name` задано — обновляет поле."""
-    u = (
-        await session.execute(select(User).where(User.email == email))
-    ).scalar_one_or_none()
+    u = (await session.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if u is None:
         u = User(
             email=email,
@@ -207,9 +243,7 @@ async def main() -> None:
             await session.flush()
 
         # очистка
-        await session.execute(
-            update(Employee).values(department_id=None)
-        )
+        await session.execute(update(Employee).values(department_id=None))
         await session.execute(delete(DeptMaturitySurvey))
         await session.execute(delete(Department))
         await session.commit()
@@ -231,9 +265,7 @@ async def main() -> None:
             # переназначаем сотрудников указанных менеджеров
             for owner_email in spec["assign_owner_emails"]:
                 u = (
-                    await session.execute(
-                        select(User).where(User.email == owner_email)
-                    )
+                    await session.execute(select(User).where(User.email == owner_email))
                 ).scalar_one_or_none()
                 if u is None:
                     continue
@@ -242,6 +274,8 @@ async def main() -> None:
                     .where(Employee.owner_id == u.id, Employee.kind == "employee")
                     .values(department_id=d.id)
                 )
+                if not isinstance(upd, CursorResult):
+                    raise RuntimeError("Ожидался CursorResult при назначении отдела")
                 n_assigned += upd.rowcount or 0
 
             scenario = spec["scenario"]

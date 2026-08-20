@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 
 from sqlalchemy import (
     Date,
@@ -45,8 +46,8 @@ class Rotation(Base, TimestampMixin):
         ForeignKey("products.id", ondelete="SET NULL"), nullable=True, index=True
     )
     # status: proposed | accepted | completed | cancelled | reverted
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="proposed", index=True
+    status: Mapped[Literal["proposed", "accepted", "completed", "cancelled", "reverted"]] = (
+        mapped_column(String(20), nullable=False, default="proposed", index=True)
     )
     reason_md: Mapped[str | None] = mapped_column(Text, nullable=True)
     initiated_by_id: Mapped[int] = mapped_column(
@@ -106,7 +107,8 @@ class RotationSuggestion(Base, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("employee_id", "from_project_id"),
         UniqueConstraint(
-            "employee_id", "from_product_id",
+            "employee_id",
+            "from_product_id",
             name="uq_rotation_suggestions_employee_from_product",
         ),
     )

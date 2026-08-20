@@ -2,6 +2,7 @@
 
 Все функции возвращают plain-text контекст, который пихается в системный промпт.
 Никаких I/O вне SQLAlchemy и DOCX-чтения."""
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -34,9 +35,7 @@ def _employee_header(emp: Employee) -> list[str]:
     ]
 
 
-async def build_topics_context(
-    session: AsyncSession, rv: SelfReview, emp: Employee
-) -> str:
+async def build_topics_context(session: AsyncSession, rv: SelfReview, emp: Employee) -> str:
     """Контекст для AI-генерации тем 1:1: header + текст Self-Review +
     МПК-краткая сводка + последние meeting-итоги + последняя рекомендация."""
     lines: list[str] = []
@@ -82,14 +81,10 @@ async def build_topics_context(
             )
             current = {cid: lvl for cid, lvl in cur_q.all()}
             comp_q = await session.execute(
-                select(Competency.id, Competency.name).where(
-                    Competency.id.in_(required.keys())
-                )
+                select(Competency.id, Competency.name).where(Competency.id.in_(required.keys()))
             )
             name_by_id = {cid: n for cid, n in comp_q.all()}
-            lines.append(
-                "===== ОЦЕНКА РУКОВОДИТЕЛЯ ПО МПК ====="
-            )
+            lines.append("===== ОЦЕНКА РУКОВОДИТЕЛЯ ПО МПК =====")
             lines.append(
                 "Уровни проставил руководитель (это НЕ самооценка). "
                 "Формат: оценка руководителя / целевой уровень / Δ"
@@ -197,9 +192,7 @@ async def build_compare_context(
     return ("\n".join(cur_lines), "\n".join(prev_lines))
 
 
-async def build_burnout_context(
-    session: AsyncSession, rv: SelfReview, emp: Employee
-) -> str:
+async def build_burnout_context(session: AsyncSession, rv: SelfReview, emp: Employee) -> str:
     """Только текст самого ревью + заметки. Анализ опирается на формулировки."""
     lines = _employee_header(emp)
     lines.append(f"Год: {rv.year}")
@@ -213,9 +206,7 @@ async def build_burnout_context(
     return "\n".join(lines)
 
 
-async def build_calibration_context(
-    session: AsyncSession, rv: SelfReview, emp: Employee
-) -> str:
+async def build_calibration_context(session: AsyncSession, rv: SelfReview, emp: Employee) -> str:
     """Цитаты из ревью + полный МПК-профиль с уровнями."""
     lines = _employee_header(emp)
     lines.append(f"Год: {rv.year}")
@@ -254,9 +245,7 @@ async def build_calibration_context(
     comp_q = await session.execute(select(Competency.id, Competency.name))
     name_by_id = {cid: n for cid, n in comp_q.all()}
 
-    lines.append(
-        "===== ОЦЕНКА РУКОВОДИТЕЛЯ ПО МПК ====="
-    )
+    lines.append("===== ОЦЕНКА РУКОВОДИТЕЛЯ ПО МПК =====")
     lines.append(
         "Это оценки, которые руководитель проставил сотруднику в матрице "
         "профессиональных компетенций. Это НЕ самооценка сотрудника. "
@@ -275,9 +264,7 @@ async def build_calibration_context(
     return "\n".join(lines)
 
 
-async def build_drafting_context(
-    session: AsyncSession, rv: SelfReview, emp: Employee
-) -> str:
+async def build_drafting_context(session: AsyncSession, rv: SelfReview, emp: Employee) -> str:
     """Контекст для drafting helper'а: артефакты прошлого года + ИПР + МПК + проекты."""
     lines = _employee_header(emp)
     lines.append(f"Год отчёта: {rv.year}")
@@ -315,8 +302,10 @@ async def build_drafting_context(
         for a in art_q.scalars():
             arts_by_m.setdefault(a.meeting_id, []).append(a)
         for m in meetings:
-            lines.append(f"\n— Встреча {m.scheduled_at.date()} (процедура: "
-                         f"{m.procedure.title if m.procedure else '—'}):")
+            lines.append(
+                f"\n— Встреча {m.scheduled_at.date()} (процедура: "
+                f"{m.procedure.title if m.procedure else '—'}):"
+            )
             if m.summary_md:
                 lines.append(m.summary_md[:1000])
             for a in arts_by_m.get(m.id, [])[:5]:
@@ -365,17 +354,11 @@ async def build_drafting_context(
             )
             current = {cid: lvl for cid, lvl in cur_q.all()}
             comp_q = await session.execute(
-                select(Competency.id, Competency.name).where(
-                    Competency.id.in_(required.keys())
-                )
+                select(Competency.id, Competency.name).where(Competency.id.in_(required.keys()))
             )
             name_by_id = {cid: n for cid, n in comp_q.all()}
-            lines.append(
-                "===== ОЦЕНКА РУКОВОДИТЕЛЯ ПО МПК ====="
-            )
-            lines.append(
-                "Уровни от руководителя (НЕ самооценка)."
-            )
+            lines.append("===== ОЦЕНКА РУКОВОДИТЕЛЯ ПО МПК =====")
+            lines.append("Уровни от руководителя (НЕ самооценка).")
             for cid, req in required.items():
                 cur = current.get(cid, 0)
                 gap = req - cur
@@ -387,24 +370,18 @@ async def build_drafting_context(
 
     # обучение для гэпов — если есть
     if emp.role_id and emp.grade_id:
-        gap_ids = [
-            cid
-            for cid, req in required.items()
-            if (req - current.get(cid, 0)) > 0
-        ]
+        gap_ids = [cid for cid, req in required.items() if (req - current.get(cid, 0)) > 0]
         if gap_ids:
             lr_q = await session.execute(
-                select(LearningResource).where(
-                    LearningResource.competency_id.in_(gap_ids)
-                ).limit(20)
+                select(LearningResource)
+                .where(LearningResource.competency_id.in_(gap_ids))
+                .limit(20)
             )
             resources = list(lr_q.scalars())
             if resources:
                 lines.append("===== РЕСУРСЫ ОБУЧЕНИЯ ПО ГЭПАМ =====")
                 for r in resources:
-                    lines.append(
-                        f"  · {r.name} ({r.format or '—'}, {r.provider or '—'})"
-                    )
+                    lines.append(f"  · {r.name} ({r.format or '—'}, {r.provider or '—'})")
                 lines.append("")
 
     return "\n".join(lines)

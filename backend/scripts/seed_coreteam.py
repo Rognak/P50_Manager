@@ -4,6 +4,7 @@
 
 Запуск:  uv run python -m scripts.seed_coreteam
 """
+
 import asyncio
 
 from sqlalchemy import select

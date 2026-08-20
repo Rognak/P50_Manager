@@ -7,6 +7,7 @@
 Запуск:
     uv run python -m scripts.seed_candidates
 """
+
 import asyncio
 import io
 import sys
@@ -23,13 +24,15 @@ from app.models.user import User
 from app.self_review.docx_render import extract_docx_text
 
 ADMIN_EMAIL = "admin@example.com"
-DOCX_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-)
+DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
 def make_resume_docx(
-    full_name: str, position: str, years: int, skills: list[str], jobs: list[tuple[str, str, list[str]]]
+    full_name: str,
+    position: str,
+    years: int,
+    skills: list[str],
+    jobs: list[tuple[str, str, list[str]]],
 ) -> bytes:
     """Генерирует простой DOCX-резюме для тестов."""
     doc = Document()
@@ -71,15 +74,23 @@ CANDIDATES: list[dict] = [
             "years": 7,
             "skills": ["React", "TypeScript", "Next.js", "GraphQL", "Tailwind", "Webpack/Vite"],
             "jobs": [
-                ("Яндекс — 2020–2024", "2020–2024", [
-                    "Tech Lead команды из 6 фронтов",
-                    "Архитектура нового SSR-стека на Next.js — снизили TTFB в 2 раза",
-                    "Внедрил design-system с Storybook, переиспользуют все продукты",
-                ]),
-                ("Avito — 2018–2020", "2018–2020", [
-                    "Разработка маркетплейса B2B, 5М MAU",
-                    "Перевёл legacy-jQuery на React, +30% к скорости разработки",
-                ]),
+                (
+                    "Яндекс — 2020–2024",
+                    "2020–2024",
+                    [
+                        "Tech Lead команды из 6 фронтов",
+                        "Архитектура нового SSR-стека на Next.js — снизили TTFB в 2 раза",
+                        "Внедрил design-system с Storybook, переиспользуют все продукты",
+                    ],
+                ),
+                (
+                    "Avito — 2018–2020",
+                    "2018–2020",
+                    [
+                        "Разработка маркетплейса B2B, 5М MAU",
+                        "Перевёл legacy-jQuery на React, +30% к скорости разработки",
+                    ],
+                ),
             ],
         },
         "ai_summary": (
@@ -115,11 +126,15 @@ CANDIDATES: list[dict] = [
             "years": 4,
             "skills": ["Python", "FastAPI", "PostgreSQL", "Redis", "Docker", "Kubernetes"],
             "jobs": [
-                ("Тинькофф — 2021–2024", "2021–2024", [
-                    "Разработка платёжных микросервисов на FastAPI",
-                    "Миграция монолита (Django) на async — рост RPS в 3 раза",
-                    "Менторство 2-х джунов",
-                ]),
+                (
+                    "Тинькофф — 2021–2024",
+                    "2021–2024",
+                    [
+                        "Разработка платёжных микросервисов на FastAPI",
+                        "Миграция монолита (Django) на async — рост RPS в 3 раза",
+                        "Менторство 2-х джунов",
+                    ],
+                ),
             ],
         },
         "ai_summary": (
@@ -172,10 +187,14 @@ CANDIDATES: list[dict] = [
             "years": 3,
             "skills": ["Linux", "Docker", "Kubernetes (basic)", "GitLab CI", "Terraform"],
             "jobs": [
-                ("Lamoda — 2022–2024", "2022–2024", [
-                    "Поддержка stage/prod на GitLab CI",
-                    "Миграция деплоя с manual в k8s",
-                ]),
+                (
+                    "Lamoda — 2022–2024",
+                    "2022–2024",
+                    [
+                        "Поддержка stage/prod на GitLab CI",
+                        "Миграция деплоя с manual в k8s",
+                    ],
+                ),
             ],
         },
         "ai_summary": (
@@ -207,15 +226,23 @@ CANDIDATES: list[dict] = [
                 "Fastlane, CI/CD (Bitrise)",
             ],
             "jobs": [
-                ("СберМаркет — 2021–2024", "2021–2024", [
-                    "Разработка фичей покупательского iOS-приложения (5М+ MAU)",
-                    "Перевод части экранов с UIKit на SwiftUI, выработка стандартов команды",
-                    "Снижение крэш-rate с 0.4% до 0.08% через структурный рефакторинг сетевого слоя",
-                ]),
-                ("Кошелёк — 2019–2021", "2019–2021", [
-                    "iOS-разработка модулей лояльности и оплаты",
-                    "Внедрил Fastlane для автоматизации релизного цикла (TestFlight + App Store)",
-                ]),
+                (
+                    "СберМаркет — 2021–2024",
+                    "2021–2024",
+                    [
+                        "Разработка фичей покупательского iOS-приложения (5М+ MAU)",
+                        "Перевод части экранов с UIKit на SwiftUI, выработка стандартов команды",
+                        "Снижение крэш-rate с 0.4% до 0.08% через структурный рефакторинг сетевого слоя",
+                    ],
+                ),
+                (
+                    "Кошелёк — 2019–2021",
+                    "2019–2021",
+                    [
+                        "iOS-разработка модулей лояльности и оплаты",
+                        "Внедрил Fastlane для автоматизации релизного цикла (TestFlight + App Store)",
+                    ],
+                ),
             ],
         },
     },
@@ -240,15 +267,23 @@ CANDIDATES: list[dict] = [
                 "Charles, Wireshark (basic)",
             ],
             "jobs": [
-                ("Альфа-Банк — 2022–2024", "2022–2024", [
-                    "Авто-тестирование REST API мобильного банка (~200 тест-кейсов)",
-                    "Внедрила интеграцию Allure в Jenkins-пайплайн команды",
-                    "Сократила регресс с 3 дней до 4 часов за счёт авто-тестов",
-                ]),
-                ("Lamoda Tech — 2020–2022", "2020–2022", [
-                    "Ручное и авто-тестирование e-commerce, фокус на checkout",
-                    "Подготовка и поддержка тест-данных в стейдж-окружениях",
-                ]),
+                (
+                    "Альфа-Банк — 2022–2024",
+                    "2022–2024",
+                    [
+                        "Авто-тестирование REST API мобильного банка (~200 тест-кейсов)",
+                        "Внедрила интеграцию Allure в Jenkins-пайплайн команды",
+                        "Сократила регресс с 3 дней до 4 часов за счёт авто-тестов",
+                    ],
+                ),
+                (
+                    "Lamoda Tech — 2020–2022",
+                    "2020–2022",
+                    [
+                        "Ручное и авто-тестирование e-commerce, фокус на checkout",
+                        "Подготовка и поддержка тест-данных в стейдж-окружениях",
+                    ],
+                ),
             ],
         },
     },
@@ -265,14 +300,22 @@ CANDIDATES: list[dict] = [
             "years": 8,
             "skills": ["Java 17/21", "Spring Boot", "Kafka", "PostgreSQL", "Kubernetes"],
             "jobs": [
-                ("Сбер — 2018–2024", "2018–2024", [
-                    "Разработка high-load платёжных сервисов",
-                    "Tech Lead команды из 5 человек на проекте «Антифрод»",
-                    "Миграция с Java 8 на 17, сокращение latency на 40%",
-                ]),
-                ("РЖД — 2016–2018", "2016–2018", [
-                    "Разработка систем учёта грузоперевозок",
-                ]),
+                (
+                    "Сбер — 2018–2024",
+                    "2018–2024",
+                    [
+                        "Разработка high-load платёжных сервисов",
+                        "Tech Lead команды из 5 человек на проекте «Антифрод»",
+                        "Миграция с Java 8 на 17, сокращение latency на 40%",
+                    ],
+                ),
+                (
+                    "РЖД — 2016–2018",
+                    "2016–2018",
+                    [
+                        "Разработка систем учёта грузоперевозок",
+                    ],
+                ),
             ],
         },
     },
@@ -289,10 +332,14 @@ CANDIDATES: list[dict] = [
             "years": 6,
             "skills": ["BPMN", "UML", "SQL", "Confluence", "Jira", "ArchiMate"],
             "jobs": [
-                ("X5 Retail — 2020–2024", "2020–2024", [
-                    "Анализ требований для омниканальной платформы",
-                    "Постановка задач командам разработки (8 продуктов)",
-                ]),
+                (
+                    "X5 Retail — 2020–2024",
+                    "2020–2024",
+                    [
+                        "Анализ требований для омниканальной платформы",
+                        "Постановка задач командам разработки (8 продуктов)",
+                    ],
+                ),
             ],
         },
         "ai_feedback": (
@@ -325,9 +372,13 @@ CANDIDATES: list[dict] = [
             "years": 1,
             "skills": ["Python", "Flask (учебно)", "PostgreSQL"],
             "jobs": [
-                ("Самозанятость / pet-проекты — 2023–2024", "2023–2024", [
-                    "Telegram-бот с обработкой платежей (учебный)",
-                ]),
+                (
+                    "Самозанятость / pet-проекты — 2023–2024",
+                    "2023–2024",
+                    [
+                        "Telegram-бот с обработкой платежей (учебный)",
+                    ],
+                ),
             ],
         },
     },
@@ -345,31 +396,19 @@ async def main() -> None:
 
         # очистка кандидатов админа
         existing_ids_q = await session.execute(
-            select(Employee.id).where(
-                Employee.owner_id == admin.id, Employee.kind == "candidate"
-            )
+            select(Employee.id).where(Employee.owner_id == admin.id, Employee.kind == "candidate")
         )
         existing_ids = [eid for (eid,) in existing_ids_q.all()]
         if existing_ids:
             await session.execute(
-                delete(CandidateProfile).where(
-                    CandidateProfile.employee_id.in_(existing_ids)
-                )
+                delete(CandidateProfile).where(CandidateProfile.employee_id.in_(existing_ids))
             )
-            await session.execute(
-                delete(Employee).where(Employee.id.in_(existing_ids))
-            )
+            await session.execute(delete(Employee).where(Employee.id.in_(existing_ids)))
             await session.commit()
 
         # справочники
-        roles = {
-            r.name: r.id
-            for r in (await session.execute(select(Role))).scalars()
-        }
-        grades = {
-            g.code: g.id
-            for g in (await session.execute(select(Grade))).scalars()
-        }
+        roles = {r.name: r.id for r in (await session.execute(select(Role))).scalars()}
+        grades = {g.code: g.id for g in (await session.execute(select(Grade))).scalars()}
 
         now = datetime.now(UTC)
         today = date.today()

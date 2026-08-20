@@ -9,6 +9,7 @@
     from app.codebuddy.auth import token_manager
     token = await token_manager.get_token()
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -52,9 +53,7 @@ class KeycloakTokenManager:
         self._lock = asyncio.Lock()
 
     def is_configured(self) -> bool:
-        return bool(settings.codebuddy_client_id) and bool(
-            settings.codebuddy_client_secret
-        )
+        return bool(settings.codebuddy_client_id) and bool(settings.codebuddy_client_secret)
 
     async def get_token(self) -> str:
         """Вернуть валидный access_token. При необходимости запрашивает новый."""
@@ -88,10 +87,7 @@ class KeycloakTokenManager:
                 "CODEBUDDY_CLIENT_SECRET в backend/.env"
             )
 
-        url = (
-            settings.codebuddy_keycloak_url.rstrip("/")
-            + "/protocol/openid-connect/token"
-        )
+        url = settings.codebuddy_keycloak_url.rstrip("/") + "/protocol/openid-connect/token"
         logger.info("Keycloak token fetch: %s", url)
         try:
             async with httpx.AsyncClient(
@@ -107,28 +103,20 @@ class KeycloakTokenManager:
                     headers={"Content-Type": "application/x-www-form-urlencoded"},
                 )
         except httpx.HTTPError as e:
-            raise CodeBuddyAuthError(
-                f"Не удалось связаться с Keycloak ({url}): {e}"
-            ) from e
+            raise CodeBuddyAuthError(f"Не удалось связаться с Keycloak ({url}): {e}") from e
 
         if resp.status_code != 200:
-            raise CodeBuddyAuthError(
-                f"Keycloak вернул {resp.status_code}: {resp.text[:300]}"
-            )
+            raise CodeBuddyAuthError(f"Keycloak вернул {resp.status_code}: {resp.text[:300]}")
 
         try:
             data = resp.json()
             access_token = data["access_token"]
             expires_in = int(data.get("expires_in", 300))
         except (ValueError, KeyError) as e:
-            raise CodeBuddyAuthError(
-                f"Не удалось распарсить ответ Keycloak: {e}"
-            ) from e
+            raise CodeBuddyAuthError(f"Не удалось распарсить ответ Keycloak: {e}") from e
 
         logger.info("Keycloak token received, expires in %ds", expires_in)
-        return _Token(
-            access_token=access_token, expires_at=time.time() + expires_in
-        )
+        return _Token(access_token=access_token, expires_at=time.time() + expires_in)
 
 
 # Singleton — один на процесс

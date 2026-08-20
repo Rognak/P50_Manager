@@ -62,13 +62,9 @@ class CandidateProfile(Base, TimestampMixin):
     resume_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # AI-скрининг: качественная рекомендация (да/нет) + развёрнутое обоснование.
-    ai_screening_recommended: Mapped[bool | None] = mapped_column(
-        Boolean, nullable=True
-    )
+    ai_screening_recommended: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     ai_screening_reasoning_md: Mapped[str | None] = mapped_column(Text, nullable=True)
-    ai_screening_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    ai_screening_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Решение по итогам — ставит руководитель вручную после интервью.
     feedback_decision: Mapped[str | None] = mapped_column(

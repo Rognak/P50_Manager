@@ -12,6 +12,7 @@
     codebuddy_keycloak_url=https://auth.example.com/realms/example
     codebuddy_verify_ssl=false
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -79,17 +80,17 @@ async def main() -> int:
     print(f"  ✓ Ответ получен: developers count={n}")
     if n > 0:
         sample = data["developers"][0]
-        print(f"     первый: username={sample.get('username')!r}, "
-              f"mrCount={sample.get('mrCount')}, "
-              f"prQualityScore={sample.get('prQualityScore')}")
+        print(
+            f"     первый: username={sample.get('username')!r}, "
+            f"mrCount={sample.get('mrCount')}, "
+            f"prQualityScore={sample.get('prQualityScore')}"
+        )
 
     # ---- 3. Проверяем доступ к /feature-catalog ----
     print()
     print("Шаг 3: GET /api/external/v1/feature-catalog")
     try:
-        catalog = await codebuddy_client.get(
-            "/api/external/v1/feature-catalog"
-        )
+        catalog = await codebuddy_client.get("/api/external/v1/feature-catalog")
     except CodeBuddyAPIError as e:
         print(f"  ✗ {e}", file=sys.stderr)
         return 1

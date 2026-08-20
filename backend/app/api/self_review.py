@@ -1,4 +1,5 @@
 """Self-Review API: CRUD карточки, загрузка/скачивание DOCX, HTML-viewer, lifecycle."""
+
 from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
 
@@ -30,9 +31,7 @@ from app.self_review.docx_render import extract_docx_text, render_docx_to_html
 router = APIRouter(prefix="/employees/{employee_id}/self-reviews", tags=["self-review"])
 global_router = APIRouter(prefix="/self-reviews", tags=["self-review"])
 
-DOCX_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-)
+DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
 def _docx_disposition(filename: str) -> str:
@@ -85,9 +84,7 @@ def _to_public(rv: SelfReview, employee_name: str) -> SelfReviewPublic:
 
 
 @router.get("", response_model=list[SelfReviewListItem])
-async def list_employee_reviews(
-    employee_id: int, session: SessionDep, _current_user: CurrentUser
-):
+async def list_employee_reviews(employee_id: int, session: SessionDep, _current_user: CurrentUser):
     emp = await _load_employee(session, employee_id)
     q = await session.execute(
         select(SelfReview)
@@ -331,10 +328,7 @@ def _build_summary_md(rv: SelfReview, emp_name: str) -> tuple[str, str]:
             parts.append("")
 
     if rv.source_filename:
-        parts.append(
-            f"---\n_Оригинал .docx: **{rv.source_filename}** "
-            f"(хранится в системе)._"
-        )
+        parts.append(f"---\n_Оригинал .docx: **{rv.source_filename}** (хранится в системе)._")
 
     return "\n".join(parts), title
 
@@ -467,8 +461,8 @@ async def list_all_reviews(
     status: str | None = None,
 ):
     """Список ревью.
-      • Руководитель отдела видит только свои (Employee.owner_id == self).
-      • CoreTeam видит все — с указанием руководителя для фильтрации на UI.
+    • Руководитель отдела видит только свои (Employee.owner_id == self).
+    • CoreTeam видит все — с указанием руководителя для фильтрации на UI.
     """
     q = (
         select(SelfReview, Employee.full_name, Employee.owner_id, User.full_name)

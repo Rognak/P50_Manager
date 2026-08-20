@@ -4,37 +4,39 @@ import { DigitalProfileContent } from '../../api/client'
 
 const PRIORITY_TONE: Record<
   'high' | 'medium' | 'low',
-  { label: string; cls: string }
+  { label: string; cls: string; row: string }
 > = {
   high: {
     label: 'критично',
-    cls: 'bg-rose-500/15 text-rose-300 ring-rose-500/30',
+    cls: 'semantic-status-danger',
+    row: 'semantic-card-danger',
   },
   medium: {
     label: 'важно',
-    cls: 'bg-amber-500/15 text-amber-300 ring-amber-500/30',
+    cls: 'semantic-status-warning',
+    row: 'semantic-card-warning',
   },
   low: {
     label: 'отложено',
-    cls: 'bg-slate-500/15 text-slate-300 ring-slate-500/30',
+    cls: 'semantic-status-neutral',
+    row: 'semantic-card-neutral',
   },
 }
 
 const SECTION_TONES = {
-  emerald: {
-    border: 'border-emerald-500/40',
-    badge: 'bg-emerald-500/20 text-emerald-300',
+  success: {
+    border: 'border-success/70',
+    badge: 'semantic-status-success',
   },
-  rose: { border: 'border-rose-500/40', badge: 'bg-rose-500/20 text-rose-300' },
-  amber: {
-    border: 'border-amber-500/40',
-    badge: 'bg-amber-500/20 text-amber-300',
+  warning: {
+    border: 'border-warning/70',
+    badge: 'semantic-status-warning',
   },
-  violet: {
-    border: 'border-violet-500/40',
-    badge: 'bg-violet-500/20 text-violet-300',
+  neutral: {
+    border: 'border-outline',
+    badge: 'bg-surface-subtle text-ink-secondary ring-1 ring-outline-subtle',
   },
-  sky: { border: 'border-sky-500/40', badge: 'bg-sky-500/20 text-sky-300' },
+  primary: { border: 'border-primary/60', badge: 'semantic-status-primary' },
 } as const
 
 type SectionTone = keyof typeof SECTION_TONES
@@ -60,9 +62,9 @@ function SectionHeader({
       >
         {icon}
       </span>
-      <h3 className="text-sm font-semibold text-slate-200">{title}</h3>
+      <h3 className="text-sm font-semibold text-ink">{title}</h3>
       {count !== undefined && (
-        <span className="text-xs text-slate-500">· {count}</span>
+        <span className="text-xs text-ink-muted">· {count}</span>
       )}
     </div>
   )
@@ -72,20 +74,27 @@ function Card({
   title,
   detail,
   source,
+  tone = 'neutral',
 }: {
   title: string
   detail: string
   source?: string | null
+  tone?: 'success' | 'warning' | 'neutral'
 }) {
+  const accent = {
+    success: 'semantic-card-success',
+    warning: 'semantic-card-warning',
+    neutral: 'semantic-card-neutral',
+  }[tone]
   return (
-    <div className="rounded-xl bg-bg-elevated p-3 ring-1 ring-white/5">
-      <div className="text-sm font-medium text-slate-200">{title}</div>
-      <div className="mt-1 text-xs leading-relaxed text-slate-400">
+    <div className={`rounded-xl border border-outline-strong border-l-2 p-3 ${accent}`}>
+      <div className="text-sm font-medium text-ink">{title}</div>
+      <div className="mt-1 text-xs leading-relaxed text-ink-secondary">
         {detail}
       </div>
       {source && (
-        <div className="mt-2 text-[10px] uppercase tracking-wide text-slate-500">
-          источник: <span className="text-slate-400">{source}</span>
+        <div className="mt-2 text-[10px] uppercase tracking-wide text-ink-muted">
+          источник: <span className="text-ink-secondary">{source}</span>
         </div>
       )}
     </div>
@@ -100,8 +109,8 @@ function GapLevelBadge({ level }: { level: string }) {
       className={
         'inline-block min-w-[2.5rem] rounded px-2 py-0.5 text-center font-mono text-[11px] ' +
         (isLevel
-          ? 'bg-accent/15 text-accent'
-          : 'bg-slate-500/15 text-slate-500')
+          ? 'bg-primary-soft text-primary'
+          : 'bg-surface-subtle text-ink-muted ring-1 ring-outline-subtle')
       }
     >
       {v || '—'}
@@ -111,7 +120,7 @@ function GapLevelBadge({ level }: { level: string }) {
 
 function Empty({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-xl bg-bg-elevated px-4 py-3 text-xs text-slate-500 ring-1 ring-white/5">
+    <div className="rounded-xl bg-surface px-4 py-3 text-xs text-ink-muted ring-1 ring-outline-subtle">
       {children}
     </div>
   )
@@ -125,14 +134,14 @@ export function DigitalProfileView({
   return (
     <div className="space-y-6">
       {/* Шапка — headline + summary */}
-      <div className="space-y-3 rounded-2xl bg-bg-elevated p-5 ring-1 ring-white/5">
+      <div className="surface-raised-card space-y-3 rounded-2xl border p-5">
         {content.headline && (
-          <div className="text-sm font-medium leading-snug text-accent">
+          <div className="text-sm font-medium leading-snug text-ink">
             {content.headline}
           </div>
         )}
         {content.summary && (
-          <p className="text-sm leading-relaxed text-slate-300 whitespace-pre-line">
+          <p className="text-sm leading-relaxed text-ink-secondary whitespace-pre-line">
             {content.summary}
           </p>
         )}
@@ -145,7 +154,7 @@ export function DigitalProfileView({
             icon="✓"
             title="Сильные стороны"
             count={content.strengths.length}
-            tone="emerald"
+            tone="success"
           />
           {content.strengths.length === 0 ? (
             <Empty>нет данных</Empty>
@@ -157,6 +166,7 @@ export function DigitalProfileView({
                   title={it.title}
                   detail={it.detail}
                   source={it.source}
+                  tone="success"
                 />
               ))}
             </div>
@@ -168,7 +178,7 @@ export function DigitalProfileView({
             icon="!"
             title="Слабые места / точки роста"
             count={content.weaknesses.length}
-            tone="rose"
+            tone="warning"
           />
           {content.weaknesses.length === 0 ? (
             <Empty>не выявлены</Empty>
@@ -180,6 +190,7 @@ export function DigitalProfileView({
                   title={it.title}
                   detail={it.detail}
                   source={it.source}
+                  tone="warning"
                 />
               ))}
             </div>
@@ -194,7 +205,7 @@ export function DigitalProfileView({
             icon="≠"
             title="Разрыв «заявлено vs факт»"
             count={content.gaps.length}
-            tone="amber"
+            tone="warning"
           />
           <div className="overflow-hidden rounded-2xl bg-bg-elevated ring-1 ring-white/5">
             <table className="w-full text-left text-sm">
@@ -236,7 +247,7 @@ export function DigitalProfileView({
             icon="P"
             title="Сводка по проектам"
             count={content.projects.length}
-            tone="violet"
+            tone="neutral"
           />
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             {content.projects.map((p, i) => (
@@ -268,7 +279,7 @@ export function DigitalProfileView({
             icon="→"
             title="Рекомендуемые действия"
             count={content.actions.length}
-            tone="sky"
+            tone="primary"
           />
           <div className="space-y-2">
             {content.actions.map((a, i) => {
@@ -276,11 +287,11 @@ export function DigitalProfileView({
               return (
                 <div
                   key={i}
-                  className="flex items-start gap-3 rounded-xl bg-bg-elevated p-3 ring-1 ring-white/5"
+                  className={`flex items-start gap-3 rounded-xl border border-outline-strong border-l-2 p-3 ${t.row}`}
                 >
                   <span
                     className={
-                      'mt-0.5 shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold ring-1 ' +
+                      'mt-0.5 shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold ' +
                       t.cls
                     }
                   >

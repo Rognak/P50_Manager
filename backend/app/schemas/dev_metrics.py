@@ -1,10 +1,11 @@
 """Pydantic-схемы для dev-метрик, извлечённых компетенций и цифрового профиля."""
+
 from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Any  # noqa: F401  used in inner annotations
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict
 
 
 # ----- Dev metrics snapshot ------------------------------------------------
@@ -31,6 +32,23 @@ class WipMrItem(BaseModel):
     updated_at: datetime | None = None
     age_days: int
     is_stale: bool
+    state: str = "unknown"
+
+
+class PullRequestStatusRequest(BaseModel):
+    url: AnyHttpUrl
+
+
+class PullRequestStatusAccess(BaseModel):
+    available: bool
+    reason: str | None = None
+    auto_sync_enabled: bool = True
+
+
+class PullRequestStatusSync(BaseModel):
+    state: str
+    merged_at: datetime | None = None
+    checked_at: datetime
 
 
 class DevMetricsSnapshotPublic(BaseModel):

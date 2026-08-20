@@ -4,6 +4,7 @@
 Реалтайм: in-memory hub публикует в подписки, SSE отдаёт по EventSource.
 Аутентификация SSE — через query-параметр `token` (EventSource не пробрасывает headers).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -36,9 +37,7 @@ SSE_LIST_LIMIT = 50  # сколько последних событий верн
 async def _cleanup_old(session) -> None:
     """Удаляет уведомления старше TTL_DAYS. Вызывается из list/count."""
     cutoff = datetime.now(UTC) - timedelta(days=TTL_DAYS)
-    await session.execute(
-        delete(Notification).where(Notification.created_at < cutoff)
-    )
+    await session.execute(delete(Notification).where(Notification.created_at < cutoff))
     # commit — caller-контекст; здесь auto-commit от FastAPI session
     await session.commit()
 
@@ -76,9 +75,7 @@ async def unread_count(session: SessionDep, current_user: CurrentUser):
 
 
 @router.post("/{notification_id}/read", response_model=NotificationPublic)
-async def mark_read(
-    notification_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def mark_read(notification_id: int, session: SessionDep, current_user: CurrentUser):
     n = await session.get(Notification, notification_id)
     if n is None or n.recipient_user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Уведомление не найдено")
@@ -106,9 +103,7 @@ async def mark_all_read(session: SessionDep, current_user: CurrentUser):
 
 
 @router.delete("/{notification_id}", status_code=204)
-async def delete_notification(
-    notification_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def delete_notification(notification_id: int, session: SessionDep, current_user: CurrentUser):
     n = await session.get(Notification, notification_id)
     if n is None or n.recipient_user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Уведомление не найдено")
@@ -126,12 +121,13 @@ def _sse(event: str, data: dict | str) -> bytes:
 
 
 async def _validate_sse_token(token: str) -> User:
-    credentials_exc = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED, detail="Bad token"
-    )
+    credentials_exc = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bad token")
     try:
         payload = decode_access_token(token)
-        user_id = int(payload.get("sub"))
+        subject = payload.get("sub")
+        if not isinstance(subject, (str, int)):
+            raise ValueError("JWT subject отсутствует")
+        user_id = int(subject)
     except (JWTError, TypeError, ValueError):
         raise credentials_exc
     async with SessionLocal() as s:
@@ -165,9 +161,7 @@ async def stream(
                 if await request.is_disconnected():
                     break
                 try:
-                    event = await asyncio.wait_for(
-                        queue.get(), timeout=HEARTBEAT_SEC
-                    )
+                    event = await asyncio.wait_for(queue.get(), timeout=HEARTBEAT_SEC)
                     yield _sse("notification", event)
                 except asyncio.TimeoutError:
                     yield _sse("ping", {})

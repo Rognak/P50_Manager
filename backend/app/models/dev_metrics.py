@@ -9,6 +9,7 @@
   • ExtractedCompetency — какие МПК-компетенции AI извлёк из PR-ов сотрудника.
   • DigitalProfile    — AI-сгенерированная сводка (summary + strengths + actions).
 """
+
 from datetime import date, datetime
 
 from sqlalchemy import (
@@ -57,9 +58,7 @@ class DevMetricsSnapshot(Base, TimestampMixin):
     # Quality signals (count из total_mrs)
     mr_with_tests: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     mr_with_description: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    mr_with_review_discussion: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    mr_with_review_discussion: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Средние/агрегаты
     avg_iterations: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
@@ -95,12 +94,8 @@ class PullRequest(Base, TimestampMixin):
     state: Mapped[str] = mapped_column(String(20), nullable=False)
     # open | merged | closed | wip
 
-    created_at_ext: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    merged_at_ext: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    created_at_ext: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    merged_at_ext: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     additions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     deletions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -136,9 +131,7 @@ class ExtractedCompetency(Base, TimestampMixin):
 
     # Сколько PR-ов оказались релевантны этой компетенции
     frequency: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    last_seen_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # JSONB: [{ "pr_id": int, "pr_external_id": str, "title": str, "url": str,
     #          "project_id": int|None, "evidence": "что именно проявило компетенцию" }, ...]

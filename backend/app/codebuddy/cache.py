@@ -5,6 +5,7 @@
 
 Не используется для записи бинарных данных — JSON only.
 """
+
 from __future__ import annotations
 
 import json

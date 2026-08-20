@@ -9,6 +9,7 @@ Read-only. Источник зависит от feature-flag `integrations.codeb
 Сигнатуры endpoint'ов и Pydantic-схемы одинаковы для обоих режимов, фронт
 о коммутации не знает.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
@@ -16,11 +17,18 @@ from datetime import UTC, date, datetime, timedelta
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
-from app.admin.settings import is_codebuddy_live
+from app.admin.settings import is_codebuddy_live, is_gitlab_auto_sync_enabled
 from app.api.deps import CurrentUser, MutatorUser, SessionDep, can_view_employee_owned_by
 from app.codebuddy.client import CodeBuddyAPIError
 from app.codebuddy.projects_sync import sync_projects_from_codebuddy
 from app.codebuddy.service import codebuddy_service
+from app.gitlab_status import (
+    GitLabStatusError,
+    cache_merge_request_status,
+    check_repository_access,
+    fetch_merge_request_status,
+    resolve_gitlab_config,
+)
 from app.models.dev_metrics import (
     DigitalProfile,
     ExtractedCompetency,
@@ -45,6 +53,9 @@ from app.schemas.dev_metrics import (
     ProjectExtractedCompetenciesResponse,
     ProjectExtractedCompetencyItem,
     PullRequestPublic,
+    PullRequestStatusAccess,
+    PullRequestStatusRequest,
+    PullRequestStatusSync,
 )
 
 router = APIRouter(prefix="/employees", tags=["dev-metrics"])
@@ -164,9 +175,7 @@ async def _filter_examples_by_pr_date(
         m = date_cache
     else:
         dq = await session.execute(
-            select(PullRequest.id, PullRequest.created_at_ext).where(
-                PullRequest.id.in_(pr_ids)
-            )
+            select(PullRequest.id, PullRequest.created_at_ext).where(PullRequest.id.in_(pr_ids))
         )
         m = dict(dq.all())
     out: list[dict] = []
@@ -204,9 +213,7 @@ async def get_employee_dev_metrics(
 
     if await is_codebuddy_live(session):
         try:
-            snap = await codebuddy_service.get_dev_metrics(
-                emp, period_start, period_end
-            )
+            snap = await codebuddy_service.get_dev_metrics(emp, period_start, period_end)
         except CodeBuddyAPIError as e:
             raise _codebuddy_error_to_http(e) from e
         # Авто-создание проектов из wip_mrs (если есть). Опускаем при пустом
@@ -301,9 +308,7 @@ async def get_employee_dev_metrics(
 # ----- /employees/{id}/pull-requests ---------------------------------------
 
 
-@router.get(
-    "/{employee_id}/pull-requests", response_model=list[PullRequestPublic]
-)
+@router.get("/{employee_id}/pull-requests", response_model=list[PullRequestPublic])
 async def list_employee_pull_requests(
     employee_id: int,
     session: SessionDep,
@@ -326,9 +331,7 @@ async def list_employee_pull_requests(
         # Авто-создание проектов из списка PR. Идёмпотентно, без падения read'а.
         try:
             seen = [
-                (p.project_id, p.project_name, p.created_at_ext, p.url)
-                for p in prs
-                if p.project_id
+                (p.project_id, p.project_name, p.created_at_ext, p.url) for p in prs if p.project_id
             ]
             await sync_projects_from_codebuddy(session, emp, seen)
         except Exception:  # noqa: BLE001
@@ -353,6 +356,52 @@ async def list_employee_pull_requests(
         item.project_name = pname
         out.append(item)
     return out
+
+
+@router.post(
+    "/{employee_id}/pull-requests/status-access",
+    response_model=PullRequestStatusAccess,
+)
+async def pull_request_status_access(
+    employee_id: int,
+    payload: PullRequestStatusRequest,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
+    """Проверить сеть, конфигурацию и права на конкретный GitLab-репозиторий."""
+    await _load_owned_employee(session, employee_id, current_user)
+    auto_sync_enabled = await is_gitlab_auto_sync_enabled(session)
+    config = await resolve_gitlab_config(session)
+    try:
+        await check_repository_access(str(payload.url), config)
+    except GitLabStatusError as exc:
+        return PullRequestStatusAccess(
+            available=False,
+            reason=str(exc),
+            auto_sync_enabled=auto_sync_enabled,
+        )
+    return PullRequestStatusAccess(available=True, auto_sync_enabled=auto_sync_enabled)
+
+
+@router.post(
+    "/{employee_id}/pull-requests/sync-status",
+    response_model=PullRequestStatusSync,
+)
+async def sync_pull_request_status(
+    employee_id: int,
+    payload: PullRequestStatusRequest,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
+    """Вручную получить актуальный статус PR напрямую из GitLab."""
+    await _load_owned_employee(session, employee_id, current_user)
+    config = await resolve_gitlab_config(session)
+    try:
+        state, merged_at, checked_at = await fetch_merge_request_status(str(payload.url), config)
+    except GitLabStatusError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    await cache_merge_request_status(str(payload.url), state, merged_at, checked_at)
+    return PullRequestStatusSync(state=state, merged_at=merged_at, checked_at=checked_at)
 
 
 # ----- /employees/{id}/extracted-competencies ------------------------------
@@ -407,10 +456,12 @@ async def get_extracted_competencies(
         # last_seen_at — из самой свежей даты среди оставшихся примеров
         last_seen = None
         if filtered:
-            last_seen = max(
-                (date_cache.get(e.get("pr_id")) for e in filtered if e.get("pr_id") in date_cache),
-                default=None,
-            )
+            dated_ids = [
+                pr_id
+                for example in filtered
+                if isinstance((pr_id := example.get("pr_id")), int) and pr_id in date_cache
+            ]
+            last_seen = max((date_cache[pr_id] for pr_id in dated_ids), default=None)
         by_comp[comp.id] = ExtractedCompetencyItem(
             competency_id=comp.id,
             competency_name=comp.name,
@@ -463,7 +514,8 @@ async def get_extracted_competencies(
 
     # Если в периоде frequency=0 и компетенция не «заявлена» — скрываем (шум).
     items = [
-        v for v in by_comp.values()
+        v
+        for v in by_comp.values()
         if v.frequency > 0 or (v.required_level is not None and v.required_level > 0)
     ]
     items.sort(key=lambda x: (x.sort_order, x.competency_id))
@@ -529,9 +581,7 @@ async def get_employee_competency_prs(
         return []
 
     try:
-        prs = await codebuddy_service.get_pull_requests(
-            emp, period_start, period_end, limit=200
-        )
+        prs = await codebuddy_service.get_pull_requests(emp, period_start, period_end, limit=200)
     except CodeBuddyAPIError as e:
         raise _codebuddy_error_to_http(e) from e
 
@@ -564,12 +614,8 @@ async def get_employee_competency_prs(
 # ----- /employees/{id}/digital-profile -------------------------------------
 
 
-@router.get(
-    "/{employee_id}/digital-profile", response_model=DigitalProfilePublic | None
-)
-async def get_digital_profile(
-    employee_id: int, session: SessionDep, current_user: CurrentUser
-):
+@router.get("/{employee_id}/digital-profile", response_model=DigitalProfilePublic | None)
+async def get_digital_profile(employee_id: int, session: SessionDep, current_user: CurrentUser):
     await _load_owned_employee(session, employee_id, current_user)
     q = await session.execute(
         select(DigitalProfile).where(DigitalProfile.employee_id == employee_id)
@@ -659,9 +705,7 @@ async def get_project_extracted_competencies(
     if await is_codebuddy_live(session):
         # Грузим Employee для resolve_gitlab_username
         if member_ids:
-            mq2 = await session.execute(
-                select(Employee).where(Employee.id.in_(member_ids))
-            )
+            mq2 = await session.execute(select(Employee).where(Employee.id.in_(member_ids)))
             members = list(mq2.scalars())
         else:
             members = []

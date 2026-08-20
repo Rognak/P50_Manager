@@ -17,17 +17,13 @@ router = APIRouter(
 )
 
 
-async def _load_meeting(
-    session, employee_id: int, meeting_id: int, current_user
-) -> Meeting:
+async def _load_meeting(session, employee_id: int, meeting_id: int, current_user) -> Meeting:
     q = await session.execute(select(Employee).where(Employee.id == employee_id))
     emp = q.scalar_one_or_none()
     if emp is None or not can_view_employee_owned_by(current_user, emp.owner_id):
         raise HTTPException(status_code=404, detail="Сотрудник не найден")
     q = await session.execute(
-        select(Meeting).where(
-            Meeting.id == meeting_id, Meeting.employee_id == employee_id
-        )
+        select(Meeting).where(Meeting.id == meeting_id, Meeting.employee_id == employee_id)
     )
     meeting = q.scalar_one_or_none()
     if meeting is None:

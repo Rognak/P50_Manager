@@ -99,6 +99,19 @@ export interface WipMrItem {
   updated_at: string | null
   age_days: number
   is_stale: boolean
+  state: string
+}
+
+export interface PullRequestStatusAccess {
+  available: boolean
+  reason: string | null
+  auto_sync_enabled: boolean
+}
+
+export interface PullRequestStatusSync {
+  state: string
+  merged_at: string | null
+  checked_at: string
 }
 
 export interface DevMetricsSnapshotPublic {
@@ -494,6 +507,18 @@ export interface NavVisibilityResponse {
   items: Record<string, Record<string, boolean>>
 }
 
+export interface TechnologyCatalogEntry {
+  technology_id: string
+  name: string
+  type: string
+  aliases: string | null
+  ecosystem: string
+  detectability: 'high' | 'medium' | 'low'
+  manifest_signals: string | null
+  code_signals: string | null
+  notes: string | null
+}
+
 export interface NotificationKindsResponse {
   enabled: Record<string, boolean>
   all_known_kinds: string[]
@@ -539,6 +564,18 @@ export interface CronJobMeta {
 
 export interface IntegrationsResponse {
   codebuddy_live: boolean
+}
+
+export interface GitLabConfigResponse {
+  base_url: string
+  api_token_set: boolean
+  api_token_source: 'admin' | 'env' | 'none'
+  auto_sync_enabled: boolean
+}
+
+export interface GitLabConfigUpdate {
+  api_token?: string | null
+  auto_sync_enabled: boolean
 }
 
 export interface CodeBuddyHealthResponse {
@@ -956,7 +993,7 @@ export interface TechnologyAttentionFlags {
 }
 export interface TechnologyRef { id: number; name: string; status: TechnologyStatus }
 export interface TechnologyListItem {
-  id: number; name: string; category: TechnologyCategory; status: TechnologyStatus
+  id: number; name: string; icon_slug: string | null; category: TechnologyCategory; status: TechnologyStatus
   status_reason_md: string | null; replacement: TechnologyRef | null
   status_changed_at: string; last_reviewed_at: string | null; next_review_at: string | null
   is_active: boolean; leaders_count: number; experts_count: number
@@ -986,7 +1023,7 @@ export interface Technology extends TechnologyListItem {
   created_by: number; created_at: string; updated_at: string
 }
 export interface ProductTechnology {
-  technology_id: number; technology_name: string; category: TechnologyCategory
+  technology_id: number; technology_name: string; icon_slug: string | null; category: TechnologyCategory
   status: TechnologyStatus; usage_type: TechnologyUsageType; notes: string | null
   attention: TechnologyAttentionFlags
 }
@@ -998,6 +1035,7 @@ export interface EmployeeTechnologyProductRef {
 export interface EmployeeTechnology {
   technology_id: number
   technology_name: string
+  icon_slug: string | null
   category: TechnologyCategory
   status: TechnologyStatus
   member_role: TechnologyMemberRole
@@ -1006,13 +1044,61 @@ export interface EmployeeTechnology {
   products: EmployeeTechnologyProductRef[]
   attention: TechnologyAttentionFlags
 }
+export interface TechnologyCompetencyLink {
+  competency_id: number; competency_name: string; weight: number; notes: string | null
+}
+export interface TechnologyCandidate {
+  employee_id: number; full_name: string; suggested_role: 'expert' | 'practitioner'
+  department_id: number | null; department_name: string | null
+  max_mpk_level: number | null; matched_competencies: string[]
+  product_count: number; pr_count: number; reasons: string[]
+}
+export interface TechnologyBusFactor {
+  leaders: number; experts: number; practitioners: number; active_products: number
+  single_expert_risk: boolean; low_carrier_coverage: boolean
+  departed_experts: number; signals: string[]
+}
+export interface TechnologyVulnerability {
+  id: number; advisory_id: string; severity: 'critical' | 'high' | 'medium' | 'low' | 'unknown'
+  summary: string; url: string | null; is_kev: boolean; epss: number | null
+  affected: boolean; fetched_at: string
+}
+export interface TechnologyVersionEvidence {
+  id: number; package_mapping_id: number; ecosystem: string; package_name: string
+  project_id: number; project_name: string; product_id: number | null; product_name: string | null
+  version: string; source: string; detected_at: string; vulnerabilities: TechnologyVulnerability[]
+}
+export interface TechnologySecuritySummary {
+  critical: number; high: number; medium: number; low: number; kev: number
+  affected_products: number; evidence: TechnologyVersionEvidence[]
+}
+export interface TechnologyPackageMapping {
+  id: number; ecosystem: string; package_name: string
+}
+export interface TechnologyNewsItem {
+  id: number; title: string; url: string; source: string; published_at: string; summary: string | null
+}
+export interface TechnologyNewsSource {
+  id: number
+  name: string
+  feed_url: string
+  is_active: boolean
+  last_fetched_at: string | null
+}
+export interface TechnologyProposal {
+  id: number; name: string; category_id: number; rationale_md: string; status: string
+  decision_md: string | null; proposed_by: number; decided_by: number | null
+  technology_id: number | null; created_at: string
+}
 export interface TechnologyCreatePayload {
   name: string; category_id: number; description_md?: string | null
+  icon_slug?: string | null
   status: TechnologyStatus; status_reason_md?: string | null
   replacement_technology_id?: number | null; next_review_at?: string | null
 }
 export interface TechnologyUpdatePayload {
   name?: string; category_id?: number; description_md?: string | null
+  icon_slug?: string | null
   replacement_technology_id?: number | null; next_review_at?: string | null
 }
 
@@ -1033,7 +1119,8 @@ export const api = {
     meta: () => request<TechnologyMeta>('/technologies/meta'),
     list: (params?: {
       q?: string; status?: TechnologyStatus; category_id?: number
-      product_id?: number; attention_only?: boolean; include_archived?: boolean
+      product_id?: number; attention_only?: boolean; include_archived?: boolean; limit?: number
+      exclude_employee_id?: number; exclude_product_id?: number; offset?: number
     }) => {
       const qs = new URLSearchParams()
       if (params?.q) qs.set('q', params.q)
@@ -1042,6 +1129,10 @@ export const api = {
       if (params?.product_id) qs.set('product_id', String(params.product_id))
       if (params?.attention_only) qs.set('attention_only', 'true')
       if (params?.include_archived) qs.set('include_archived', 'true')
+      if (params?.limit) qs.set('limit', String(params.limit))
+      if (params?.offset) qs.set('offset', String(params.offset))
+      if (params?.exclude_employee_id) qs.set('exclude_employee_id', String(params.exclude_employee_id))
+      if (params?.exclude_product_id) qs.set('exclude_product_id', String(params.exclude_product_id))
       return request<TechnologyListItem[]>(`/technologies${qs.size ? `?${qs}` : ''}`)
     },
     get: (id: number) => request<Technology>(`/technologies/${id}`),
@@ -1083,6 +1174,62 @@ export const api = {
       remove: (id: number, linkId: number) =>
         request<void>(`/technologies/${id}/links/${linkId}`, { method: 'DELETE' }),
     },
+    competencies: {
+      list: (id: number) => request<TechnologyCompetencyLink[]>(`/technologies/${id}/competencies`),
+      set: (id: number, items: { competency_id: number; weight: number; notes?: string | null }[]) =>
+        request<TechnologyCompetencyLink[]>(`/technologies/${id}/competencies`, { method: 'PUT', body: JSON.stringify(items) }),
+    },
+    candidates: {
+      list: (id: number, params?: { q?: string; department_id?: number; suggested_role?: 'expert' | 'practitioner'; limit?: number }) => {
+        const qs = new URLSearchParams()
+        if (params?.q) qs.set('q', params.q)
+        if (params?.department_id) qs.set('department_id', String(params.department_id))
+        if (params?.suggested_role) qs.set('suggested_role', params.suggested_role)
+        if (params?.limit) qs.set('limit', String(params.limit))
+        return request<TechnologyCandidate[]>(`/technologies/${id}/candidates${qs.size ? `?${qs}` : ''}`)
+      },
+      accept: (id: number, employeeId: number, role: 'expert' | 'practitioner') =>
+        request<{ status: string }>(`/technologies/${id}/candidates/${employeeId}/accept?role=${role}`, { method: 'POST' }),
+    },
+    busFactor: (id: number) => request<TechnologyBusFactor>(`/technologies/${id}/bus-factor`),
+    security: (id: number) => request<TechnologySecuritySummary>(`/technologies/${id}/security`),
+    packages: {
+      list: (id: number) => request<TechnologyPackageMapping[]>(`/technologies/${id}/packages`),
+      add: (id: number, data: { ecosystem: string; package_name: string }) =>
+        request<TechnologyPackageMapping>(`/technologies/${id}/packages`, { method: 'POST', body: JSON.stringify(data) }),
+      remove: (id: number, mappingId: number) =>
+        request<void>(`/technologies/${id}/packages/${mappingId}`, { method: 'DELETE' }),
+    },
+    versions: {
+      add: (id: number, data: { package_mapping_id: number; project_id: number; version: string; source?: string }) =>
+        request<TechnologyVersionEvidence>(`/technologies/${id}/versions`, { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: number, evidenceId: number, data: { version?: string; source?: string }) =>
+        request<TechnologyVersionEvidence>(`/technologies/${id}/versions/${evidenceId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      remove: (id: number, evidenceId: number) =>
+        request<void>(`/technologies/${id}/versions/${evidenceId}`, { method: 'DELETE' }),
+    },
+    osvScan: (id: number, evidenceId: number) =>
+      request<TechnologySecuritySummary>(`/technologies/${id}/versions/${evidenceId}/osv-scan`, { method: 'POST' }),
+    news: {
+      list: (id: number) => request<TechnologyNewsItem[]>(`/technologies/${id}/news`),
+      add: (id: number, data: { title: string; url: string; source: string; published_at: string; summary?: string | null }) =>
+        request<TechnologyNewsItem>(`/technologies/${id}/news`, { method: 'POST', body: JSON.stringify(data) }),
+      sources: (id: number) => request<TechnologyNewsSource[]>(`/technologies/${id}/news-sources`),
+      addSource: (id: number, data: { name: string; feed_url: string }) =>
+        request<TechnologyNewsSource>(`/technologies/${id}/news-sources`, { method: 'POST', body: JSON.stringify(data) }),
+      removeSource: (id: number, sourceId: number) =>
+        request<void>(`/technologies/${id}/news-sources/${sourceId}`, { method: 'DELETE' }),
+      fetchSource: (id: number, sourceId: number) =>
+        request<TechnologyNewsItem[]>(`/technologies/${id}/news-sources/${sourceId}/fetch`, { method: 'POST' }),
+    },
+  },
+
+  technologyProposals: {
+    list: () => request<TechnologyProposal[]>('/technology-proposals'),
+    create: (data: { name: string; category_id: number; rationale_md: string }) =>
+      request<TechnologyProposal>('/technology-proposals', { method: 'POST', body: JSON.stringify(data) }),
+    decide: (id: number, data: { status: 'assessing' | 'approved' | 'rejected'; decision_md: string }) =>
+      request<TechnologyProposal>(`/technology-proposals/${id}/decision`, { method: 'POST', body: JSON.stringify(data) }),
   },
 
   employees: {
@@ -1120,6 +1267,14 @@ export const api = {
         `/employees/${id}/pull-requests?${qs}`,
       )
     },
+    pullRequestStatusAccess: (id: number, url: string) =>
+      request<PullRequestStatusAccess>(`/employees/${id}/pull-requests/status-access`, {
+        method: 'POST', body: JSON.stringify({ url }),
+      }),
+    syncPullRequestStatus: (id: number, url: string) =>
+      request<PullRequestStatusSync>(`/employees/${id}/pull-requests/sync-status`, {
+        method: 'POST', body: JSON.stringify({ url }),
+      }),
     extractedCompetencies: (
       id: number,
       opts?: { from?: string; to?: string; include_answers?: boolean },
@@ -1859,6 +2014,8 @@ export const api = {
 
   admin: {
     whoami: () => request<{ id: number; email: string; is_admin: boolean }>('/admin/whoami'),
+    technologyCatalog: () =>
+      request<TechnologyCatalogEntry[]>('/admin/technology-catalog'),
     navVisibility: {
       get: () => request<NavVisibilityResponse>('/admin/nav-visibility'),
       put: (items: Record<string, Record<string, boolean>>) =>
@@ -1926,6 +2083,14 @@ export const api = {
       get: () => request<IntegrationsResponse>('/admin/integrations'),
       put: (data: IntegrationsResponse) =>
         request<IntegrationsResponse>('/admin/integrations', {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        }),
+    },
+    gitlab: {
+      get: () => request<GitLabConfigResponse>('/admin/gitlab'),
+      put: (data: GitLabConfigUpdate) =>
+        request<GitLabConfigResponse>('/admin/gitlab', {
           method: 'PUT',
           body: JSON.stringify(data),
         }),
@@ -3083,6 +3248,18 @@ export interface DevActivitySummary {
   wip_total: number
   stale_alerts: StaleMrAlert[]
   top_competencies: TeamCompetencyAggregate[]
+  leaderboard: DevLeaderboardEmployee[]
+}
+
+export interface DevLeaderboardEmployee {
+  employee_id: number
+  full_name: string
+  total_mrs: number
+  avg_quality_ratio: number
+  comments_given: number
+  avg_time_to_merge_hours: number | null
+  tests_ratio: number
+  stale_count: number
 }
 
 // ---------- Assignments ----------

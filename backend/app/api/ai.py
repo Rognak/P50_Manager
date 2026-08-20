@@ -1,4 +1,5 @@
 """AI endpoints — теперь все enqueue в ARQ. Возвращают AIJob, клиент поллит /ai-jobs/{id}."""
+
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload

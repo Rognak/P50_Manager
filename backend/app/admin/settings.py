@@ -3,6 +3,7 @@
 Используется как из API (admin/*), так и из обработчиков (cron, notify-create)
 чтобы проверять «включено ли это глобально».
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -67,9 +68,7 @@ async def get_enabled_notification_kinds(
     return await get_setting(session, SETTING_KEY_ENABLED_NOTIFICATION_KINDS)
 
 
-async def is_notification_kind_enabled(
-    session: AsyncSession, kind: str
-) -> bool:
+async def is_notification_kind_enabled(session: AsyncSession, kind: str) -> bool:
     """По умолчанию все типы включены. Только явное `false` глушит kind."""
     enabled = await get_enabled_notification_kinds(session)
     if kind not in enabled:
@@ -115,3 +114,9 @@ async def is_codebuddy_live(session: AsyncSession) -> bool:
     """Использовать CodeBuddy live API вместо mock-таблиц? Дефолт — False."""
     flags = await get_integrations(session)
     return bool(flags.get("codebuddy_live", False))
+
+
+async def is_gitlab_auto_sync_enabled(session: AsyncSession) -> bool:
+    """Автоматически сверять Unknown/stale-open PR при открытии карточки."""
+    config = await get_setting(session, "gitlab")
+    return bool(config.get("auto_sync_enabled", True))

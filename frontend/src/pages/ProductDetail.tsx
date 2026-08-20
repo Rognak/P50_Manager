@@ -5,7 +5,6 @@ import {
   EmployeeSearchItem,
   Product,
   ProductListItem,
-  ProductTechnology,
   ProductStatus,
   ProjectCoverage,
   ProjectExtractedCompetenciesResponse,
@@ -19,6 +18,7 @@ import {
 } from '../api/client'
 import { CodeBuddyErrorBanner } from '../components/CodeBuddyErrorBanner'
 import { PerformancePanel } from '../components/product/PerformancePanel'
+import { ProductTechnologiesPanel } from '../components/product/ProductTechnologiesPanel'
 import { StackEditor } from '../components/project/StackEditor'
 import { TechMaturityPanel } from '../components/project/TechMaturityPanel'
 import { useReadOnly } from '../lib/auth-context'
@@ -27,6 +27,12 @@ const STATUS_LABEL: Record<ProductStatus, string> = {
   active: 'Активен',
   on_hold: 'На паузе',
   completed: 'Завершён',
+}
+
+const STATUS_STYLE: Record<ProductStatus, string> = {
+  active: 'bg-emerald-500/15 text-emerald-400',
+  on_hold: 'bg-amber-500/15 text-amber-400',
+  completed: 'bg-slate-500/15 text-slate-400',
 }
 
 function fmtDate(iso: string | null): string {
@@ -315,7 +321,7 @@ function Tile({
   return (
     <div className="rounded-2xl bg-bg-elevated p-4 ring-1 ring-white/5">
       <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-accent">{value}</div>
+      <div className="mt-1 text-2xl font-semibold text-slate-200">{value}</div>
       {hint && <div className="mt-1 text-[11px] text-slate-500">{hint}</div>}
     </div>
   )
@@ -481,7 +487,6 @@ export function ProductDetail() {
   // Единый фильтр периода: управляет PR-ами, Performance и AI-компетенциями.
   const [periodDays, setPeriodDays] = useState(90)
   const [otherProducts, setOtherProducts] = useState<ProductListItem[]>([])
-  const [technologies, setTechnologies] = useState<ProductTechnology[]>([])
   const [openRotations, setOpenRotations] = useState<RotationListItem[]>([])
   const [proposingFor, setProposingFor] = useState<{
     employee_id: number
@@ -524,10 +529,6 @@ export function ProductDetail() {
       .then((list) =>
         setOtherProducts(list.filter((p) => p.id !== productId)),
       )
-      .catch(() => undefined)
-    api.products
-      .technologies(productId)
-      .then(setTechnologies)
       .catch(() => undefined)
     // Открытые ротации (proposed/accepted) с участием этого продукта в качестве источника.
     // Используем стандартный фильтр rotations.list по statusам.
@@ -705,7 +706,7 @@ export function ProductDetail() {
               </div>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-400">
-              <span className="rounded bg-bg-panel px-2 py-0.5 text-xs">
+              <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[product.status]}`}>
                 {STATUS_LABEL[product.status]}
               </span>
               <span>·</span>
@@ -795,39 +796,7 @@ export function ProductDetail() {
         />
       </section>
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Технологии
-        </h2>
-        {technologies.length === 0 ? (
-          <div className="rounded-2xl bg-bg-elevated px-6 py-5 text-sm text-slate-500">
-            Технологии продукта пока не указаны. Связи управляются в карточке технологии.
-          </div>
-        ) : (
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {technologies.map((technology) => {
-              const debt = technology.status === 'hold' && product.status === 'active'
-              return (
-                <button
-                  key={technology.technology_id}
-                  onClick={() => navigate(`/technology-radar/${technology.technology_id}`)}
-                  className={`rounded-xl p-4 text-left ring-1 transition hover:bg-bg-panel ${debt ? 'bg-rose-500/10 ring-rose-500/30' : 'bg-bg-elevated ring-white/5'}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{technology.technology_name}</span>
-                    <span className="rounded bg-bg-panel px-2 py-0.5 text-xs uppercase text-slate-300">
-                      {technology.status} · {technology.usage_type}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">{technology.category.name}</div>
-                  {technology.notes && <div className="mt-2 text-xs text-slate-400">{technology.notes}</div>}
-                  {debt && <div className="mt-2 text-xs text-rose-300">Технология находится в Hold и всё ещё используется активным продуктом.</div>}
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </section>
+      <ProductTechnologiesPanel productId={productId} productStatus={product.status} canManage={!readOnly} />
 
       {/* performance (объединено с обзором) */}
       <section>

@@ -17,9 +17,7 @@ class VacancyCreate(BaseModel):
     @model_validator(mode="after")
     def _target_required(self) -> "VacancyCreate":
         if self.project_id is None and self.department_id is None:
-            raise ValueError(
-                "Нужно указать project_id или department_id (либо оба)"
-            )
+            raise ValueError("Нужно указать project_id или department_id (либо оба)")
         return self
 
 

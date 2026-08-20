@@ -4,37 +4,37 @@
  */
 import { ReactElement } from 'react'
 
-type Tone = 'teal' | 'violet' | 'amber' | 'rose' | 'sky'
+type Tone = 'data1' | 'data2' | 'data3' | 'data4' | 'data5'
 
 const TONE_STYLES: Record<Tone, { bg: string; ring: string; text: string }> = {
-  teal: {
-    bg: 'bg-emerald-500/15',
-    ring: 'ring-emerald-500/30',
-    text: 'text-emerald-300',
+  data1: {
+    bg: 'bg-surface-subtle',
+    ring: 'ring-outline-subtle',
+    text: 'text-data-1',
   },
-  violet: {
-    bg: 'bg-violet-500/15',
-    ring: 'ring-violet-500/30',
-    text: 'text-violet-300',
+  data2: {
+    bg: 'bg-surface-subtle',
+    ring: 'ring-outline-subtle',
+    text: 'text-data-2',
   },
-  amber: {
-    bg: 'bg-amber-500/15',
-    ring: 'ring-amber-500/30',
-    text: 'text-amber-300',
+  data3: {
+    bg: 'bg-surface-subtle',
+    ring: 'ring-outline-subtle',
+    text: 'text-data-3',
   },
-  rose: {
-    bg: 'bg-rose-500/15',
-    ring: 'ring-rose-500/30',
-    text: 'text-rose-300',
+  data4: {
+    bg: 'bg-surface-subtle',
+    ring: 'ring-outline-subtle',
+    text: 'text-data-4',
   },
-  sky: {
-    bg: 'bg-sky-500/15',
-    ring: 'ring-sky-500/30',
-    text: 'text-sky-300',
+  data5: {
+    bg: 'bg-surface-subtle',
+    ring: 'ring-outline-subtle',
+    text: 'text-data-5',
   },
 }
 
-const TONES: Tone[] = ['teal', 'violet', 'amber', 'rose', 'sky']
+const TONES: Tone[] = ['data1', 'data2', 'data3', 'data4', 'data5']
 
 function hashTone(s: string): Tone {
   let h = 0

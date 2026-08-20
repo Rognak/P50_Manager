@@ -108,8 +108,8 @@ class DashboardMetrics(BaseModel):
     not_assessed_employees: list[EmployeeRef]
 
     # процедуры
-    procedures_planned: int       # открыта, первая встреча ещё впереди
-    procedures_open: int          # открыта, хотя бы одна встреча уже прошла
+    procedures_planned: int  # открыта, первая встреча ещё впереди
+    procedures_open: int  # открыта, хотя бы одна встреча уже прошла
     procedures_closed_last_12m: int
 
     # состояние команды
@@ -176,6 +176,19 @@ class TeamCompetencyAggregate(BaseModel):
     employees_with: int
 
 
+class DevLeaderboardEmployee(BaseModel):
+    """Метрики одного сотрудника для независимых рейтингов команды."""
+
+    employee_id: int
+    full_name: str
+    total_mrs: int
+    avg_quality_ratio: float
+    comments_given: int
+    avg_time_to_merge_hours: float | None = None
+    tests_ratio: float
+    stale_count: int
+
+
 class DevActivitySummary(BaseModel):
     """Сводка по разработческой активности команды (источник: CodeBuddy).
 
@@ -194,3 +207,4 @@ class DevActivitySummary(BaseModel):
     wip_total: int
     stale_alerts: list[StaleMrAlert] = []
     top_competencies: list[TeamCompetencyAggregate] = []
+    leaderboard: list[DevLeaderboardEmployee] = []

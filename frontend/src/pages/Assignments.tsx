@@ -22,7 +22,7 @@ const STATUS_LABEL: Record<AssignmentStatus, string> = {
 const STATUS_TONE: Record<AssignmentStatus, string> = {
   open: 'text-amber-300',
   in_progress: 'text-accent',
-  pending_review: 'text-violet-300',
+  pending_review: 'text-ink-secondary',
   done: 'text-emerald-400',
   cancelled: 'text-slate-500',
 }

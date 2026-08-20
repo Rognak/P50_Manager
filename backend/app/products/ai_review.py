@@ -1,4 +1,5 @@
 """Формирование промпт-контекста и парсинг AI-обзора performance продукта."""
+
 from __future__ import annotations
 
 import json
@@ -17,9 +18,7 @@ _HEALTH_RU = {
 }
 
 
-def build_review_context(
-    product_name: str, perf: ProductPerformanceResponse
-) -> str:
+def build_review_context(product_name: str, perf: ProductPerformanceResponse) -> str:
     """Текстовый контекст для LLM — компактная сводка performance."""
     h = perf.health
     lines: list[str] = []
@@ -43,29 +42,20 @@ def build_review_context(
         lines.append(f"Доля PR с тестами: {int(h.with_tests_pct * 100)}%")
     if h.avg_ttm_hours is not None:
         lines.append(f"Среднее time-to-merge: {h.avg_ttm_hours} ч")
-    lines.append(
-        f"WIP сейчас: {h.wip_count}, зависших PR: {h.stale_count}"
-    )
-    lines.append(
-        f"Дефицит ★-компетенций (gap): {h.coverage_gap}, "
-        f"bus-factor: {h.bus_factor_count}"
-    )
+    lines.append(f"WIP сейчас: {h.wip_count}, зависших PR: {h.stale_count}")
+    lines.append(f"Дефицит ★-компетенций (gap): {h.coverage_gap}, bus-factor: {h.bus_factor_count}")
     lines.append(
         f"Активных разработчиков: {h.active_developers}/{h.team_size}, "
         f"пишут ревью: {h.reviewers_count}/{h.team_size}"
     )
     if h.workload_top_share is not None:
-        lines.append(
-            f"Доля PR самого активного: {int(h.workload_top_share * 100)}%"
-        )
+        lines.append(f"Доля PR самого активного: {int(h.workload_top_share * 100)}%")
     lines.append("")
 
     lines.append("## Рейтинг разработчиков")
     for i, d in enumerate(perf.developers, 1):
         delta = (
-            f", score {d.score_delta:+.1f} vs прошлый период"
-            if d.score_delta is not None
-            else ""
+            f", score {d.score_delta:+.1f} vs прошлый период" if d.score_delta is not None else ""
         )
         lines.append(
             f"{i}. {d.full_name} ({d.role_name or '—'} {d.grade_code or ''}) "

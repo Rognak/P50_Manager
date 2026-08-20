@@ -2,6 +2,7 @@
 
 Также чекает «не приостановлен ли cron» через paused_cron_jobs setting.
 """
+
 from __future__ import annotations
 
 import contextvars
@@ -57,17 +58,20 @@ def tracked_cron(cron_name: str):
         async def assignment_due_reminders(ctx):
             ... основная работа ...
     """
+
     def decorator(fn):
         async def wrapped(ctx):
             async with track_cron(cron_name) as run_id:
                 if run_id is None:
                     return {"paused": True}
                 return await fn(ctx)
+
         # ARQ registers по __qualname__ / __name__ — сохраним совместимость
         wrapped.__name__ = cron_name
         wrapped.__qualname__ = cron_name
         wrapped.__doc__ = fn.__doc__
         return wrapped
+
     return decorator
 
 

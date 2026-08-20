@@ -11,7 +11,7 @@ const STATUS_LABEL: Record<ProductStatus, string> = {
 }
 
 const STATUS_STYLE: Record<ProductStatus, string> = {
-  active: 'bg-accent/15 text-accent',
+  active: 'bg-emerald-500/15 text-emerald-400',
   on_hold: 'bg-amber-500/15 text-amber-400',
   completed: 'bg-slate-500/15 text-slate-400',
 }

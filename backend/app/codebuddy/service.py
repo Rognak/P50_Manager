@@ -13,6 +13,7 @@ Redis-кэш.
 (вызывающий эндпойнт перехватывает и отдаёт 502 фронту с понятным
 сообщением, см. `app.api.dev_metrics`).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -25,6 +26,7 @@ from app.codebuddy.client import CodeBuddyAPIError, codebuddy_client
 from app.codebuddy.identity import resolve_gitlab_username
 from app.models.employee import Employee
 from app.models.project import Project
+from app.gitlab_status import cached_merge_request_statuses
 from app.schemas.dev_metrics import (
     CompetencyTopicCoverage,
     CompetencyTopSignal,
@@ -108,7 +110,7 @@ def _detail_to_snapshot(
         )
 
     wip_items: list[WipMrItem] = []
-    for w in (detail.get("wipMrs") or []):
+    for w in detail.get("wipMrs") or []:
         wip_items.append(
             WipMrItem(
                 mr_iid=int(w.get("mrIid") or 0),
@@ -120,6 +122,7 @@ def _detail_to_snapshot(
                 updated_at=_parse_dt(w.get("updatedAt")),
                 age_days=int(w.get("ageDays") or 0),
                 is_stale=bool(w.get("isStale")),
+                state="unknown",
             )
         )
 
@@ -137,9 +140,7 @@ def _detail_to_snapshot(
         # CodeBuddy не агрегирует средние итерации; reworkRate — % MR с rewrite.
         avg_iterations=round(float(s.get("reworkRate") or 0) / 100 + 1, 2),
         avg_time_to_merge_hours=(
-            float(s["avgTimeToMergeHours"])
-            if s.get("avgTimeToMergeHours") is not None
-            else None
+            float(s["avgTimeToMergeHours"]) if s.get("avgTimeToMergeHours") is not None else None
         ),
         avg_quality_ratio=avg_quality_ratio,
         comments_given=int(s.get("commentsWritten") or 0),
@@ -161,6 +162,16 @@ def _mr_item_to_pr(it: dict) -> PullRequestPublic:
     ai = int(it.get("commentsFromAi") or 0)
     feature_keys = [str(fk) for fk in (it.get("featureKeys") or []) if fk]
     conv_rate = it.get("conventionalCommitsRate")
+    merged_at = _parse_dt(it.get("mergedAt"))
+    raw_state = str(it.get("state") or "").casefold()
+    state = {
+        "open": "open",
+        "opened": "open",
+        "merged": "merged",
+        "closed": "closed",
+    }.get(raw_state, "unknown")
+    if merged_at is not None:
+        state = "merged"
     return PullRequestPublic(
         id=int(it.get("mrIid") or 0),
         external_id=str(it.get("mrIid") or ""),
@@ -168,9 +179,9 @@ def _mr_item_to_pr(it: dict) -> PullRequestPublic:
         project_name=it.get("projectName"),
         title=it.get("title") or "",
         url=it.get("url"),
-        state=str(it.get("state") or "open"),
+        state=state,
         created_at_ext=_parse_dt(it.get("createdAt")) or datetime.now(UTC),
-        merged_at_ext=_parse_dt(it.get("mergedAt")),
+        merged_at_ext=merged_at,
         additions=int(it.get("additions") or 0),
         deletions=int(it.get("deletions") or 0),
         files_changed=int(it.get("filesChanged") or 0),
@@ -189,9 +200,7 @@ def _mr_item_to_pr(it: dict) -> PullRequestPublic:
         quality_ratio=float(it.get("qualityScore") or 0),
         feature_keys=feature_keys,
         commits_count=it.get("commitsCount"),
-        conventional_commits_rate=(
-            float(conv_rate) if conv_rate is not None else None
-        ),
+        conventional_commits_rate=(float(conv_rate) if conv_rate is not None else None),
         comments_from_peers=peers,
         comments_from_ai=ai,
     )
@@ -228,7 +237,7 @@ def _competency_to_item(c: dict) -> ExtractedCompetencyItem:
         )
 
     topic_coverage: list[CompetencyTopicCoverage] = []
-    for tc in (c.get("topicCoverage") or []):
+    for tc in c.get("topicCoverage") or []:
         topic_coverage.append(
             CompetencyTopicCoverage(
                 topic_id=int(tc.get("topicId") or 0),
@@ -300,6 +309,28 @@ class CodeBuddyService:
         # empty-state, а не нули («Иванов не делал PR за период»).
         if snap.total_mrs == 0:
             return None
+        # CodeBuddy отдаёт wipMrs без state/mergedAt. Сверяем элементы с
+        # обычным списком MR: merged/closed исключаем, null оставляем Unknown,
+        # но не считаем открытым или зависшим.
+        if snap.wip_mrs:
+            created_dates = [w.created_at.date() for w in snap.wip_mrs if w.created_at]
+            lookup_from = min([period_from, *created_dates])
+            prs = await self.get_pull_requests(employee, lookup_from, period_to, limit=200)
+            by_key = {(pr.project_id, pr.id): pr for pr in prs}
+            cached_states = await cached_merge_request_statuses(
+                [w.url for w in snap.wip_mrs if w.url]
+            )
+            reconciled: list[WipMrItem] = []
+            for wip in snap.wip_mrs:
+                pr = by_key.get((wip.project_id, wip.mr_iid))
+                wip.state = pr.state if pr is not None else "unknown"
+                if wip.state == "unknown" and wip.url:
+                    wip.state = cached_states.get(wip.url, "unknown")
+                if wip.state in {"open", "unknown"}:
+                    reconciled.append(wip)
+            snap.wip_mrs = reconciled
+            snap.wip_count = sum(w.state == "open" for w in reconciled)
+            snap.stale_count = sum(w.state == "open" and w.is_stale for w in reconciled)
         return snap
 
     # ----- pull requests ------------------------------------------------
@@ -315,9 +346,7 @@ class CodeBuddyService:
         if not username:
             return []
         limit = min(max(limit, 1), 200)
-        key = make_key(
-            "mrs", username, _iso(period_from), _iso(period_to), limit
-        )
+        key = make_key("mrs", username, _iso(period_from), _iso(period_to), limit)
 
         async def fetch() -> dict:
             try:
@@ -336,7 +365,12 @@ class CodeBuddyService:
 
         data = await cached(key, TTL_DEFAULT, fetch) or {}
         items = data.get("items") or []
-        return [_mr_item_to_pr(it) for it in items]
+        prs = [_mr_item_to_pr(it) for it in items]
+        cached_states = await cached_merge_request_statuses([pr.url for pr in prs if pr.url])
+        for pr in prs:
+            if pr.url and pr.url in cached_states:
+                pr.state = cached_states[pr.url]
+        return prs
 
     # ----- full-history iteration (для бэкфилла проектов) --------------
 
@@ -386,7 +420,8 @@ class CodeBuddyService:
         else:
             logger.warning(
                 "iterate_all_pull_requests: capped at %d pages for %s",
-                max_pages, username,
+                max_pages,
+                username,
             )
         return out
 
@@ -510,12 +545,12 @@ class CodeBuddyService:
         # Промежуточный аккумулятор сигналов: cid → {signal → (signal_type, occurrences, contribution)}
         signals_acc: dict[int, dict[str, dict[str, float | int | str]]] = {}
         for r in results:
-            if isinstance(r, Exception):
+            if isinstance(r, BaseException):
                 logger.warning("project agg: one fetch failed: %s", r)
                 continue
             emp = r["employee"]
             data = r["data"]
-            for c in (data.get("competencies") or []):
+            for c in data.get("competencies") or []:
                 if c.get("notCovered"):
                     continue
                 cid = int(c.get("competencyId") or 0)
@@ -549,7 +584,7 @@ class CodeBuddyService:
                     )
                 )
                 # Аггрегируем top_signals на уровне проекта.
-                for ts in (c.get("topSignals") or []):
+                for ts in c.get("topSignals") or []:
                     sig = str(ts.get("signal") or "")
                     if not sig:
                         continue
@@ -631,9 +666,7 @@ class CodeBuddyService:
 
     async def get_feature_catalog(self) -> dict:
         async def fetch() -> dict:
-            return await codebuddy_client.get(
-                "/api/external/v1/feature-catalog"
-            )
+            return await codebuddy_client.get("/api/external/v1/feature-catalog")
 
         return await cached(make_key("feature-catalog"), TTL_CATALOG, fetch)
 
@@ -646,9 +679,7 @@ class CodeBuddyService:
         if not token_manager.is_configured():
             return {"ok": False, "reason": "Не настроены credentials"}
         try:
-            data = await codebuddy_client.get(
-                "/api/external/v1/feature-catalog"
-            )
+            data = await codebuddy_client.get("/api/external/v1/feature-catalog")
             return {
                 "ok": True,
                 "languages": len(data.get("languages") or []),
