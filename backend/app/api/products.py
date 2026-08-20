@@ -8,6 +8,7 @@
 Карточка отдельного репо живёт на старом `/projects/{id}` и содержит
 только dev-метрики + PR-ы этого репо.
 """
+
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
@@ -108,9 +109,7 @@ router = APIRouter(prefix="/products", tags=["products"])
 
 
 async def _load_product(session, product_id: int) -> Product:
-    q = await session.execute(
-        select(Product).where(Product.id == product_id)
-    )
+    q = await session.execute(select(Product).where(Product.id == product_id))
     prod = q.scalar_one_or_none()
     if prod is None:
         raise HTTPException(status_code=404, detail="Продукт не найден")
@@ -184,9 +183,7 @@ async def _build_member_publics(
     return out
 
 
-async def _build_competency_publics(
-    session, product_id: int
-) -> list[ProductCompetencyPublic]:
+async def _build_competency_publics(session, product_id: int) -> list[ProductCompetencyPublic]:
     cq = await session.execute(
         select(ProductCompetency, Competency.name)
         .join(Competency, Competency.id == ProductCompetency.competency_id)
@@ -203,20 +200,14 @@ async def _build_competency_publics(
     ]
 
 
-async def _build_repos(
-    session, product_id: int
-) -> list[ProductRepoRef]:
+async def _build_repos(session, product_id: int) -> list[ProductRepoRef]:
     rq = await session.execute(
-        select(Project)
-        .where(Project.product_id == product_id)
-        .order_by(Project.name)
+        select(Project).where(Project.product_id == product_id).order_by(Project.name)
     )
     return [ProductRepoRef.model_validate(p) for p in rq.scalars()]
 
 
-async def _to_public(
-    session, prod: Product, current_user_id: int
-) -> ProductPublic:
+async def _to_public(session, prod: Product, current_user_id: int) -> ProductPublic:
     return ProductPublic(
         id=prod.id,
         name=prod.name,
@@ -285,12 +276,8 @@ async def list_products(session: SessionDep, current_user: CurrentUser):
     ]
 
 
-@router.post(
-    "", response_model=ProductPublic, status_code=status.HTTP_201_CREATED
-)
-async def create_product(
-    payload: ProductCreate, session: SessionDep, current_user: MutatorUser
-):
+@router.post("", response_model=ProductPublic, status_code=status.HTTP_201_CREATED)
+async def create_product(payload: ProductCreate, session: SessionDep, current_user: MutatorUser):
     prod = Product(
         name=payload.name.strip(),
         description=payload.description,
@@ -299,9 +286,7 @@ async def create_product(
         finished_at=payload.finished_at,
         gitlab_group=(payload.gitlab_group or None) or None,
         created_by=current_user.id,
-        product_manager_id=(
-            current_user.id if is_product_manager(current_user) else None
-        ),
+        product_manager_id=(current_user.id if is_product_manager(current_user) else None),
     )
     session.add(prod)
     try:
@@ -317,9 +302,7 @@ async def create_product(
 
 
 @router.get("/{product_id}", response_model=ProductPublic)
-async def get_product(
-    product_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def get_product(product_id: int, session: SessionDep, current_user: CurrentUser):
     prod = await _load_product_for(session, product_id, current_user)
     return await _to_public(session, prod, current_user.id)
 
@@ -339,9 +322,7 @@ async def update_product(
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_product(
-    product_id: int, session: SessionDep, current_user: MutatorUser
-):
+async def delete_product(product_id: int, session: SessionDep, current_user: MutatorUser):
     """Удаляет Product и каскадом все его product_members, product_competencies,
     Project'ы (тоже каскадом). PR-ы не каскадятся (FK SET NULL).
     """
@@ -353,9 +334,7 @@ async def delete_product(
 # ----- members -----------------------------------------------------------
 
 
-@router.post(
-    "/{product_id}/members", response_model=ProductMemberPublic
-)
+@router.post("/{product_id}/members", response_model=ProductMemberPublic)
 async def add_member(
     product_id: int,
     payload: ProductMemberAdd,
@@ -363,9 +342,7 @@ async def add_member(
     current_user: MutatorUser,
 ):
     await _load_product_for(session, product_id, current_user)
-    eq = await session.execute(
-        select(Employee).where(Employee.id == payload.employee_id)
-    )
+    eq = await session.execute(select(Employee).where(Employee.id == payload.employee_id))
     if eq.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Сотрудник не найден")
     dup_q = await session.execute(
@@ -562,12 +539,9 @@ async def _latest_levels_by_employee(
     return {(eid, cid): lvl for eid, cid, lvl in q.all()}
 
 
-async def _product_member_employee_ids(
-    session, product_id: int
-) -> list[int]:
+async def _product_member_employee_ids(session, product_id: int) -> list[int]:
     q = await session.execute(
-        select(ProductMember.employee_id)
-        .where(ProductMember.product_id == product_id)
+        select(ProductMember.employee_id).where(ProductMember.product_id == product_id)
     )
     return [eid for (eid,) in q.all()]
 
@@ -648,9 +622,7 @@ async def get_matrix(
 
 
 @router.get("/{product_id}/coverage", response_model=ProjectCoverage)
-async def get_coverage(
-    product_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def get_coverage(product_id: int, session: SessionDep, current_user: CurrentUser):
     """Покрытие тех.стека командой продукта (агрегат по всем его репо).
 
     Логика та же, что и у /projects/{id}/coverage — в знаменателе только
@@ -670,9 +642,7 @@ async def get_coverage(
     levels = await _latest_levels_by_employee(session, emp_ids)
 
     eq = await session.execute(
-        select(Employee.id, Employee.role_id, Employee.grade_id).where(
-            Employee.id.in_(emp_ids)
-        )
+        select(Employee.id, Employee.role_id, Employee.grade_id).where(Employee.id.in_(emp_ids))
     )
     emp_role: dict[int, tuple[int | None, int | None]] = {
         eid: (rid, gid) for eid, rid, gid in eq.all()
@@ -682,15 +652,12 @@ async def get_coverage(
     required_map: dict[tuple[int, int, int], int] = {}
     if rg_pairs:
         conditions = [
-            and_(RoleProfile.role_id == rid, RoleProfile.grade_id == gid)
-            for rid, gid in rg_pairs
+            and_(RoleProfile.role_id == rid, RoleProfile.grade_id == gid) for rid, gid in rg_pairs
         ]
         rp_q = await session.execute(select(RoleProfile).where(or_(*conditions)))
         for rp in rp_q.scalars():
             if rp.required_level > 0:
-                required_map[(rp.role_id, rp.grade_id, rp.competency_id)] = (
-                    rp.required_level
-                )
+                required_map[(rp.role_id, rp.grade_id, rp.competency_id)] = rp.required_level
 
     role_ids = {rid for rid, _ in emp_role.values() if rid}
     key_set: set[tuple[int, int]] = set()
@@ -704,9 +671,7 @@ async def get_coverage(
         key_set = {(rid, cid) for rid, cid in kq.all()}
 
     cq = await session.execute(
-        select(Competency).where(
-            Competency.id.in_([pc.competency_id for pc in stack])
-        )
+        select(Competency).where(Competency.id.in_([pc.competency_id for pc in stack]))
     )
     name_by_id = {c.id: c.name for c in cq.scalars()}
 
@@ -743,9 +708,7 @@ async def get_coverage(
         )
         if avg is not None and avg < pc.target_level:
             risk_score += pc.target_level - avg
-    items.sort(
-        key=lambda x: (-(x.target_level - (x.avg_level or 0)), x.competency_name)
-    )
+    items.sort(key=lambda x: (-(x.target_level - (x.avg_level or 0)), x.competency_name))
     return ProjectCoverage(items=items, risk_score=round(risk_score))
 
 
@@ -753,17 +716,13 @@ async def get_coverage(
     "/{product_id}/grade-distribution",
     response_model=ProjectGradeDistribution,
 )
-async def get_grade_distribution(
-    product_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def get_grade_distribution(product_id: int, session: SessionDep, current_user: CurrentUser):
     await _load_product_for(session, product_id, current_user)
     emp_ids = await _product_member_employee_ids(session, product_id)
     if not emp_ids:
         return ProjectGradeDistribution(items=[], no_grade=0)
 
-    eq = await session.execute(
-        select(Employee.grade_id).where(Employee.id.in_(emp_ids))
-    )
+    eq = await session.execute(select(Employee.grade_id).where(Employee.id.in_(emp_ids)))
     grade_counts: dict[int, int] = {}
     no_grade = 0
     for (gid,) in eq.all():
@@ -774,9 +733,7 @@ async def get_grade_distribution(
 
     items = []
     if grade_counts:
-        gq = await session.execute(
-            select(Grade).where(Grade.id.in_(grade_counts.keys()))
-        )
+        gq = await session.execute(select(Grade).where(Grade.id.in_(grade_counts.keys())))
         grades = list(gq.scalars())
         items = [
             GradeCount(
@@ -818,9 +775,7 @@ async def get_product_rotations(
     owner_ids = {c.owner_id for c in candidates}
     owner_name_by_id: dict[int, str] = {}
     if owner_ids:
-        uq = await session.execute(
-            select(User.id, User.full_name).where(User.id.in_(owner_ids))
-        )
+        uq = await session.execute(select(User.id, User.full_name).where(User.id.in_(owner_ids)))
         owner_name_by_id = {uid: name for uid, name in uq.all()}
 
     sq = await session.execute(
@@ -829,14 +784,12 @@ async def get_product_rotations(
             RotationSuggestion.employee_id.in_(emp_ids),
         )
     )
-    sug_by_emp: dict[int, RotationSuggestion] = {
-        s.employee_id: s for s in sq.scalars()
-    }
+    sug_by_emp: dict[int, RotationSuggestion] = {s.employee_id: s for s in sq.scalars()}
 
     # имена целевых продуктов
     target_ids: set[int] = set()
     for s in sug_by_emp.values():
-        for tid in (s.target_product_ids or []):
+        for tid in s.target_product_ids or []:
             target_ids.add(tid)
     target_info: dict[int, str] = {}
     if target_ids:
@@ -847,10 +800,10 @@ async def get_product_rotations(
 
     items: list[RotationCandidatePublic] = []
     for c in candidates:
-        s = sug_by_emp.get(c.employee_id)
+        suggestion = sug_by_emp.get(c.employee_id)
         targets = []
-        if s:
-            for tid in (s.target_product_ids or []):
+        if suggestion:
+            for tid in suggestion.target_product_ids or []:
                 name = target_info.get(tid)
                 if name is None:
                     continue
@@ -903,9 +856,7 @@ def _codebuddy_error_to_http(e: CodeBuddyAPIError) -> HTTPException:
     return HTTPException(status_code=http_code, detail=f"CodeBuddy: {e}")
 
 
-def _resolve_period(
-    from_date: date | None, to_date: date | None
-) -> tuple[date, date]:
+def _resolve_period(from_date: date | None, to_date: date | None) -> tuple[date, date]:
     """По умолчанию — последние 90 дней."""
     to_d = to_date or date.today()
     from_d = from_date or (to_d - timedelta(days=90))
@@ -970,9 +921,7 @@ async def list_product_pull_requests(
 
     async def _one(emp: Employee):
         try:
-            prs = await codebuddy_service.get_pull_requests(
-                emp, period_from, period_to, limit=200
-            )
+            prs = await codebuddy_service.get_pull_requests(emp, period_from, period_to, limit=200)
         except CodeBuddyAPIError as e:
             logger.warning("product/%s PR fetch for emp #%s: %s", product_id, emp.id, e)
             return []
@@ -1037,9 +986,7 @@ async def get_product_dev_metrics(
 
     async def _one(emp: Employee):
         try:
-            return await codebuddy_service.get_dev_metrics(
-                emp, period_from, period_to
-            )
+            return await codebuddy_service.get_dev_metrics(emp, period_from, period_to)
         except CodeBuddyAPIError as e:
             logger.warning("product/%s snapshot for emp #%s: %s", product_id, emp.id, e)
             return None
@@ -1139,7 +1086,9 @@ async def get_product_competency_prs(
             except CodeBuddyAPIError as e:
                 logger.warning(
                     "comp/prs: /competencies repo=%s emp=%s: %s",
-                    repo.id, emp.id, e,
+                    repo.id,
+                    emp.id,
+                    e,
                 )
                 continue
             for it in resp.items:
@@ -1160,9 +1109,7 @@ async def get_product_competency_prs(
         if not signals:
             return []
         try:
-            prs = await codebuddy_service.get_pull_requests(
-                emp, period_from, period_to, limit=200
-            )
+            prs = await codebuddy_service.get_pull_requests(emp, period_from, period_to, limit=200)
         except CodeBuddyAPIError as e:
             logger.warning("comp/prs: /mrs for emp %s: %s", emp.id, e)
             return []
@@ -1185,8 +1132,12 @@ async def get_product_competency_prs(
                 matched.append(p)
         logger.info(
             "comp/prs: emp #%s cid=%s signals=%d feat=%d → matched=%d / total=%d",
-            emp.id, competency_id, len(signals), len(feature_signals),
-            len(matched), len(prs),
+            emp.id,
+            competency_id,
+            len(signals),
+            len(feature_signals),
+            len(matched),
+            len(prs),
         )
         return matched
 
@@ -1299,9 +1250,7 @@ async def build_product_performance(
     period_from = period_to - timedelta(days=period_days)
     prev_from = period_from - timedelta(days=period_days)
 
-    members, repos = await _load_product_members_for_codebuddy(
-        session, product_id
-    )
+    members, repos = await _load_product_members_for_codebuddy(session, product_id)
     team_size = len(members)
 
     if not await is_codebuddy_live(session) or not members or not repos:
@@ -1328,9 +1277,7 @@ async def build_product_performance(
         coverage_gap = float(cov.risk_score)
         for it in cov.items:
             if it.avg_level is None or it.avg_level < it.target_level:
-                coverage_gaps.append(
-                    (it.competency_name, it.target_level, it.avg_level)
-                )
+                coverage_gaps.append((it.competency_name, it.target_level, it.avg_level))
     except Exception:  # noqa: BLE001
         coverage_gap = 0.0
 
@@ -1358,9 +1305,7 @@ async def build_product_performance(
         prev_total_prs=prev_health.total_prs,
         prev_avg_quality=prev_health.avg_quality,
     )
-    signals = build_signals(
-        developers, health, raw_now, bus_factor_detail, coverage_gaps
-    )
+    signals = build_signals(developers, health, raw_now, bus_factor_detail, coverage_gaps)
 
     return ProductPerformanceResponse(
         enabled=True,
@@ -1386,9 +1331,7 @@ async def get_product_performance(
     эвристические сигналы. Сравнение с предыдущим окном того же размера.
     """
     await _load_product_for(session, product_id, current_user)
-    return await build_product_performance(
-        session, product_id, current_user, period_days
-    )
+    return await build_product_performance(session, product_id, current_user, period_days)
 
 
 @router.get(
@@ -1411,9 +1354,7 @@ async def get_product_performance_trends(
     buckets = max(2, min(buckets, 12))
     bucket_days = max(7, min(bucket_days, 90))
 
-    members, repos = await _load_product_members_for_codebuddy(
-        session, product_id
-    )
+    members, repos = await _load_product_members_for_codebuddy(session, product_id)
     if not await is_codebuddy_live(session) or not members or not repos:
         return ProductTrendsResponse(
             enabled=await is_codebuddy_live(session),
@@ -1439,9 +1380,7 @@ async def get_product_performance_trends(
     for (wf, wt), prs in zip(windows, prs_per_window):
         n = len(prs)
         merged = sum(1 for p in prs if p.state == "merged")
-        avg_q = (
-            round(sum(p.quality_ratio for p in prs) / n, 4) if n else None
-        )
+        avg_q = round(sum(p.quality_ratio for p in prs) / n, 4) if n else None
         with_tests = (
             round(
                 sum(1 for p in prs if (p.signals or {}).get("has_tests")) / n,
@@ -1451,14 +1390,8 @@ async def get_product_performance_trends(
             else None
         )
         # «зависшие» = open PR старше 14 дней на конец окна.
-        stale_cutoff = datetime.combine(
-            wt - timedelta(days=14), datetime.min.time(), tzinfo=UTC
-        )
-        stale_open = sum(
-            1
-            for p in prs
-            if p.state == "open" and p.created_at_ext < stale_cutoff
-        )
+        stale_cutoff = datetime.combine(wt - timedelta(days=14), datetime.min.time(), tzinfo=UTC)
+        stale_open = sum(1 for p in prs if p.state == "open" and p.created_at_ext < stale_cutoff)
         out.append(
             TrendBucket(
                 period_from=wf,
@@ -1471,9 +1404,7 @@ async def get_product_performance_trends(
             )
         )
 
-    return ProductTrendsResponse(
-        enabled=True, bucket_days=bucket_days, buckets=out
-    )
+    return ProductTrendsResponse(enabled=True, bucket_days=bucket_days, buckets=out)
 
 
 async def _expire_stale_reviews(session, product_id: int) -> None:
@@ -1568,8 +1499,6 @@ async def create_performance_ai_review(
         rv.status = "error"
         rv.error = f"Не удалось поставить задачу: {e}"
         await session.commit()
-        raise HTTPException(
-            status_code=503, detail=f"Очередь недоступна: {e}"
-        ) from e
+        raise HTTPException(status_code=503, detail=f"Очередь недоступна: {e}") from e
 
     return PerformanceReviewPublic.model_validate(rv)

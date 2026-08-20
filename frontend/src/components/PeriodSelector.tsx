@@ -44,16 +44,16 @@ export function PeriodSelector({
     [],
   )
   return (
-    <div className="inline-flex items-center gap-1 rounded-full bg-bg-panel/60 p-1 ring-1 ring-white/5">
+    <div className="inline-flex items-center gap-1 rounded-full bg-surface-subtle p-1 ring-1 ring-outline-subtle">
       {presets.map((p) => (
         <button
           key={p}
           onClick={() => onChange(p)}
           className={
-            'rounded-full px-3 py-1 text-xs transition ' +
+            'rounded-full px-3 py-1 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ' +
             (value === p
-              ? 'bg-accent text-bg font-medium'
-              : 'text-slate-400 hover:text-slate-200')
+              ? 'bg-primary text-white font-medium'
+              : 'text-ink-secondary hover:bg-surface hover:text-ink')
           }
         >
           {LABELS[p]}

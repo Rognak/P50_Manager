@@ -2,6 +2,7 @@
 
 С этапа 3+ тех.зрелость живёт на уровне Product (не отдельного репо).
 """
+
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
@@ -25,14 +26,10 @@ from app.schemas.tech_maturity import (
 )
 from app.tech_maturity.scoring import calc_marks, load_template
 
-router = APIRouter(
-    prefix="/products/{product_id}/tech-maturity", tags=["tech-maturity"]
-)
+router = APIRouter(prefix="/products/{product_id}/tech-maturity", tags=["tech-maturity"])
 
 
-async def _check_product_access(
-    session, product_id: int, current_user
-) -> Product:
+async def _check_product_access(session, product_id: int, current_user) -> Product:
     from app.api.deps import is_product_manager
 
     prod = await session.get(Product, product_id)
@@ -44,9 +41,7 @@ async def _check_product_access(
 
 
 @router.get("/template", response_model=TechMaturityTemplate)
-async def get_template(
-    product_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def get_template(product_id: int, session: SessionDep, current_user: CurrentUser):
     """Шаблон опросника. Не зависит от продукта, но эндпоинт под префиксом
     продукта — проще на клиенте."""
     await _check_product_access(session, product_id, current_user)
@@ -54,9 +49,7 @@ async def get_template(
 
 
 @router.get("", response_model=list[TechMaturitySurveyListItem])
-async def list_surveys(
-    product_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def list_surveys(product_id: int, session: SessionDep, current_user: CurrentUser):
     await _check_product_access(session, product_id, current_user)
     q = await session.execute(
         select(TechMaturitySurvey, User.full_name)
@@ -81,17 +74,13 @@ async def list_surveys(
                 created_by_name=author_name,
                 overall_level=m["overall_level"],
                 total_rating=m["total_rating"],
-                rating_by_direction={
-                    dc: d["rating"] for dc, d in m["by_direction"].items()
-                },
+                rating_by_direction={dc: d["rating"] for dc, d in m["by_direction"].items()},
             )
         )
     return out
 
 
-@router.post(
-    "", response_model=TechMaturitySurveyPublic, status_code=status.HTTP_201_CREATED
-)
+@router.post("", response_model=TechMaturitySurveyPublic, status_code=status.HTTP_201_CREATED)
 async def create_survey(
     product_id: int,
     payload: TechMaturitySurveyCreate,
@@ -195,9 +184,7 @@ async def _load(session, product_id: int, survey_id: int) -> TechMaturitySurvey:
     return rv
 
 
-async def _to_public(
-    session, rv: TechMaturitySurvey
-) -> TechMaturitySurveyPublic:
+async def _to_public(session, rv: TechMaturitySurvey) -> TechMaturitySurveyPublic:
     template = load_template()
     m = calc_marks(template, rv.answers or {})
     author = await session.get(User, rv.created_by)

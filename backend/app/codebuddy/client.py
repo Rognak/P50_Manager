@@ -17,6 +17,7 @@
 
 Высокоуровневые методы (`get_developer`, `get_mrs`, …) будут отдельно.
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,14 +51,10 @@ class CodeBuddyClient:
         self.timeout = timeout
         self.verify_ssl = verify_ssl
 
-    async def get(
-        self, path: str, *, params: dict[str, Any] | None = None
-    ) -> Any:
+    async def get(self, path: str, *, params: dict[str, Any] | None = None) -> Any:
         return await self._request("GET", path, params=params)
 
-    async def post(
-        self, path: str, *, json: dict[str, Any] | None = None
-    ) -> Any:
+    async def post(self, path: str, *, json: dict[str, Any] | None = None) -> Any:
         return await self._request("POST", path, json=json)
 
     # ---- internals -----------------------------------------------------
@@ -81,36 +78,26 @@ class CodeBuddyClient:
         logger.debug("CodeBuddy %s %s params=%s", method, path, params)
 
         try:
-            async with httpx.AsyncClient(
-                verify=self.verify_ssl, timeout=self.timeout
-            ) as client:
-                resp = await client.request(
-                    method, url, params=params, json=json, headers=headers
-                )
+            async with httpx.AsyncClient(verify=self.verify_ssl, timeout=self.timeout) as client:
+                resp = await client.request(method, url, params=params, json=json, headers=headers)
         except httpx.HTTPError as e:
-            raise CodeBuddyAPIError(
-                f"Сетевая ошибка {method} {path}: {e}", status_code=502
-            ) from e
+            raise CodeBuddyAPIError(f"Сетевая ошибка {method} {path}: {e}", status_code=502) from e
 
         # 401 — токен мог просто истечь между нашей проверкой и target-проверкой.
         # Сбрасываем кэш и пытаемся ровно один раз. Если опять 401 — реальная проблема.
         if resp.status_code == 401 and _retry:
             logger.info("CodeBuddy 401 — invalidating token and retrying once")
             token_manager.invalidate()
-            return await self._request(
-                method, path, params=params, json=json, _retry=False
-            )
+            return await self._request(method, path, params=params, json=json, _retry=False)
 
         if resp.status_code == 403:
             raise CodeBuddyAPIError(
-                "CodeBuddy: 403 — у service-account нет роли "
-                "`codebuddy:external-stats`",
+                "CodeBuddy: 403 — у service-account нет роли `codebuddy:external-stats`",
                 status_code=403,
             )
         if resp.status_code == 429:
             raise CodeBuddyAPIError(
-                "CodeBuddy: 429 — превышен rate limit (60 req/min). "
-                "Подождите минуту и повторите.",
+                "CodeBuddy: 429 — превышен rate limit (60 req/min). Подождите минуту и повторите.",
                 status_code=429,
             )
         if resp.status_code == 404:
@@ -120,8 +107,7 @@ class CodeBuddyClient:
             )
         if not resp.is_success:
             raise CodeBuddyAPIError(
-                f"CodeBuddy {method} {path} → HTTP {resp.status_code}: "
-                f"{resp.text[:300]}",
+                f"CodeBuddy {method} {path} → HTTP {resp.status_code}: {resp.text[:300]}",
                 status_code=resp.status_code,
             )
 

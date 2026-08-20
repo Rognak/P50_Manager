@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { setToken } from '../lib/auth'
 import { useAuth } from '../lib/auth-context'
+import { ThemeToggle } from '../components/ThemeToggle'
 
 export function Login() {
   const navigate = useNavigate()
@@ -30,7 +31,8 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-full items-center justify-center">
+    <div className="relative flex min-h-full items-center justify-center">
+      <div className="absolute right-5 top-5"><ThemeToggle /></div>
       <form
         onSubmit={onSubmit}
         className="w-80 space-y-4 rounded-2xl bg-bg-elevated p-8 shadow-xl"

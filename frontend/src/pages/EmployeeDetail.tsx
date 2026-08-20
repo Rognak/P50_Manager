@@ -10,6 +10,7 @@ import { ProceduresTab } from '../components/employee/ProceduresTab'
 import { ProfileTab } from '../components/employee/ProfileTab'
 import { ProjectsTab } from '../components/employee/ProjectsTab'
 import { SelfReviewTab } from '../components/employee/SelfReviewTab'
+import { TechnologiesPanel } from '../components/employee/TechnologiesPanel'
 
 type TabId =
   | 'mpk'
@@ -19,6 +20,7 @@ type TabId =
   | 'dev_metrics'
   | 'extracted'
   | 'digital_profile'
+  | 'technologies'
   | 'profile'
 
 function TabButton({
@@ -229,6 +231,12 @@ export function EmployeeDetail() {
             >
               <span className="text-amber-400">⚡</span> AI-профиль
             </TabButton>
+            <TabButton
+              active={tab === 'technologies'}
+              onClick={() => setTab('technologies')}
+            >
+              Технологии
+            </TabButton>
             <TabButton active={tab === 'profile'} onClick={() => setTab('profile')}>
               Профиль
             </TabButton>
@@ -245,12 +253,35 @@ export function EmployeeDetail() {
           {tab === 'digital_profile' && (
             <DigitalProfileTab employeeId={employee.id} />
           )}
+          {tab === 'technologies' && (
+            <TechnologiesPanel employeeId={employee.id} />
+          )}
           {tab === 'profile' && (
             <ProfileTab employee={employee} onChange={refresh} />
           )}
         </>
       ) : (
-        <PublicView profile={publicProfile} />
+        <>
+          <div className="mb-4 flex gap-1 border-b border-white/5">
+            <TabButton
+              active={tab !== 'technologies'}
+              onClick={() => setTab('mpk')}
+            >
+              МПК
+            </TabButton>
+            <TabButton
+              active={tab === 'technologies'}
+              onClick={() => setTab('technologies')}
+            >
+              Технологии
+            </TabButton>
+          </div>
+          {tab === 'technologies' ? (
+            <TechnologiesPanel employeeId={empId} />
+          ) : (
+            <PublicView profile={publicProfile} />
+          )}
+        </>
       )}
     </div>
   )

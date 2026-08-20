@@ -13,6 +13,7 @@ CodeBuddy на каждом MR-элементе возвращает `projectId`
 Владельцем (`created_by`) ставится первый найденный admin-пользователь.
 Идемпотентно: повторный вызов не создаёт дубликатов.
 """
+
 from __future__ import annotations
 
 import logging
@@ -22,6 +23,7 @@ from urllib.parse import urlparse
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.employee import Employee
@@ -116,9 +118,7 @@ async def sync_projects_from_codebuddy(
     if admin_id is None:
         # Нет ни одного админа — нечем заполнить NOT NULL created_by.
         # Тихо выходим (БД должна как минимум содержать admin).
-        logger.warning(
-            "sync_projects_from_codebuddy: no admin user found, skipping"
-        )
+        logger.warning("sync_projects_from_codebuddy: no admin user found, skipping")
         result["skipped"] = len(by_pid)
         return result
 
@@ -137,17 +137,13 @@ async def sync_projects_from_codebuddy(
             for g in groups_needed
         ]
         ins_prod = pg_insert(Product).values(prod_rows)
-        ins_prod = ins_prod.on_conflict_do_nothing(
-            index_elements=["gitlab_group"]
-        )
+        ins_prod = ins_prod.on_conflict_do_nothing(index_elements=["gitlab_group"])
         await session.execute(ins_prod)
 
     group_to_product_id: dict[str, int] = {}
     if groups_needed:
         gq = await session.execute(
-            select(Product.gitlab_group, Product.id).where(
-                Product.gitlab_group.in_(groups_needed)
-            )
+            select(Product.gitlab_group, Product.id).where(Product.gitlab_group.in_(groups_needed))
         )
         group_to_product_id = {g: pid for g, pid in gq.all()}
 
@@ -156,7 +152,7 @@ async def sync_projects_from_codebuddy(
         select(Project).where(Project.gitlab_project_id.in_(by_pid.keys()))
     )
     pre_existing: dict[int, Project] = {
-        p.gitlab_project_id: p for p in pre_existing_q.scalars()
+        p.gitlab_project_id: p for p in pre_existing_q.scalars() if p.gitlab_project_id is not None
     }
 
     # 1в) Решаем какой product_id ставить каждому pid. Для одиночек (group=None)
@@ -202,6 +198,8 @@ async def sync_projects_from_codebuddy(
         index_where=Project.__table__.c.gitlab_project_id.isnot(None),
     )
     res = await session.execute(ins_proj)
+    if not isinstance(res, CursorResult):
+        raise RuntimeError("Ожидался CursorResult при создании проектов")
     result["created_projects"] = int(res.rowcount or 0)
 
     # 3) Подтянуть актуальные Project и сделать backfill product_id / group.
@@ -209,7 +207,7 @@ async def sync_projects_from_codebuddy(
         select(Project).where(Project.gitlab_project_id.in_(by_pid.keys()))
     )
     existing: dict[int, Project] = {
-        p.gitlab_project_id: p for p in existing_q.scalars()
+        p.gitlab_project_id: p for p in existing_q.scalars() if p.gitlab_project_id is not None
     }
     for pid, (_pname, _first_seen, group) in by_pid.items():
         proj = existing.get(pid)
@@ -238,10 +236,10 @@ async def sync_projects_from_codebuddy(
         )
     if mem_rows:
         ins_mem = pg_insert(ProjectMember).values(mem_rows)
-        ins_mem = ins_mem.on_conflict_do_nothing(
-            index_elements=["project_id", "employee_id"]
-        )
+        ins_mem = ins_mem.on_conflict_do_nothing(index_elements=["project_id", "employee_id"])
         res = await session.execute(ins_mem)
+        if not isinstance(res, CursorResult):
+            raise RuntimeError("Ожидался CursorResult при добавлении участников")
         result["added_members"] = int(res.rowcount or 0)
 
     # 5) Материализуем ProductMember (агрегат по продукту). Синк заводит
@@ -270,10 +268,10 @@ async def sync_projects_from_codebuddy(
             for prod_id, joined in prod_joined.items()
         ]
         ins_pmem = pg_insert(ProductMember).values(pmem_rows)
-        ins_pmem = ins_pmem.on_conflict_do_nothing(
-            index_elements=["product_id", "employee_id"]
-        )
+        ins_pmem = ins_pmem.on_conflict_do_nothing(index_elements=["product_id", "employee_id"])
         res = await session.execute(ins_pmem)
+        if not isinstance(res, CursorResult):
+            raise RuntimeError("Ожидался CursorResult при добавлении участников продукта")
         result["added_product_members"] = int(res.rowcount or 0)
 
     await session.commit()

@@ -1,4 +1,5 @@
 """ARQ cron-таски."""
+
 import logging
 from datetime import UTC, date, datetime, timedelta
 
@@ -39,9 +40,7 @@ async def refresh_stale_rotation_suggestions(ctx) -> dict:
     skipped = 0
 
     async with SessionLocal() as session:
-        active_q = await session.execute(
-            select(Project.id).where(Project.status == "active")
-        )
+        active_q = await session.execute(select(Project.id).where(Project.status == "active"))
         project_ids = [pid for (pid,) in active_q.all()]
 
         # уже-в-работе AIJob'ы по ротациям
@@ -64,6 +63,7 @@ async def refresh_stale_rotation_suggestions(ctx) -> dict:
 
         # система-юзер для created_by — берём id=1, иначе любого активного
         from app.models.user import User
+
         sys_user = await session.get(User, 1)
         if sys_user is None:
             uq = await session.execute(select(User).order_by(User.id).limit(1))
@@ -168,17 +168,12 @@ async def assignment_due_reminders(ctx) -> dict:  # noqa: ARG001
                 # просрочено
                 kind = "assignment_overdue"
                 title = f"Просрочено: «{a.title}»"
-                body = (
-                    f"Срок прошёл "
-                    f"{a.due_at.strftime('%d.%m.%Y %H:%M')}"
-                )
+                body = f"Срок прошёл {a.due_at.strftime('%d.%m.%Y %H:%M')}"
             elif a.due_at <= soon_until:
                 # дедлайн в ближайшие 24ч
                 kind = "assignment_due_soon"
                 title = f"Скоро срок: «{a.title}»"
-                body = (
-                    f"До {a.due_at.strftime('%d.%m.%Y %H:%M')}"
-                )
+                body = f"До {a.due_at.strftime('%d.%m.%Y %H:%M')}"
             else:
                 continue
 
@@ -300,13 +295,12 @@ async def codebuddy_sync_projects(ctx) -> dict:  # noqa: ARG001
 
     for emp in employees:
         try:
-            prs = await codebuddy_service.get_pull_requests(
-                emp, period_from, period_to, limit=100
-            )
+            prs = await codebuddy_service.get_pull_requests(emp, period_from, period_to, limit=100)
         except CodeBuddyAPIError as e:
             logger.warning(
                 "codebuddy_sync_projects: skip emp #%s due to error: %s",
-                emp.id, e,
+                emp.id,
+                e,
             )
             errors += 1
             continue
@@ -314,9 +308,7 @@ async def codebuddy_sync_projects(ctx) -> dict:  # noqa: ARG001
         if not prs:
             continue
         seen = [
-            (p.project_id, p.project_name, p.created_at_ext, p.url)
-            for p in prs
-            if p.project_id
+            (p.project_id, p.project_name, p.created_at_ext, p.url) for p in prs if p.project_id
         ]
         if not seen:
             continue
@@ -333,7 +325,8 @@ async def codebuddy_sync_projects(ctx) -> dict:  # noqa: ARG001
             except Exception as e:  # noqa: BLE001
                 logger.warning(
                     "codebuddy_sync_projects: failed for emp #%s: %s",
-                    emp.id, e,
+                    emp.id,
+                    e,
                 )
                 errors += 1
 

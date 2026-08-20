@@ -15,6 +15,7 @@ CodeBuddy опорный ключ — `username` (GitLab login, lowercase, об�
 `derive_gitlab_username` — pure-функция, используется отдельно для
 показа в UI «предполагаемый username» (когда поле в БД пустое).
 """
+
 from __future__ import annotations
 
 import re

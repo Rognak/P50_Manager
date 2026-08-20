@@ -6,6 +6,7 @@
   • `codebuddy_service` — высокий уровень: DTO→domain маппинг + Redis-кэш.
   • `resolve_gitlab_username(employee)` — резолв P50.Employee → CodeBuddy.username.
 """
+
 from app.codebuddy.auth import token_manager
 from app.codebuddy.client import codebuddy_client
 from app.codebuddy.identity import (

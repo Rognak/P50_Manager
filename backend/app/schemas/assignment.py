@@ -25,9 +25,7 @@ class AssignmentCreate(BaseModel):
         a = self.assignee_user_id is not None
         b = self.assignee_employee_id is not None
         if a == b:
-            raise ValueError(
-                "Нужен ровно один адресат: assignee_user_id или assignee_employee_id"
-            )
+            raise ValueError("Нужен ровно один адресат: assignee_user_id или assignee_employee_id")
         return self
 
 

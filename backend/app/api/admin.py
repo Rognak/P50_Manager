@@ -1,4 +1,5 @@
 """API админ-панели: feature flags, notifications, cron."""
+
 from __future__ import annotations
 
 import asyncio
@@ -7,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 
 from app.admin.cron_tracker import KNOWN_CRON_JOBS, run_cron_by_name
 from app.admin.settings import (
@@ -24,10 +26,12 @@ from app.api.deps import AdminUser, SessionDep
 from app.codebuddy.cache import invalidate as invalidate_codebuddy_cache
 from app.codebuddy.client import CodeBuddyAPIError
 from app.codebuddy.service import codebuddy_service
+from app.gitlab_status import resolve_gitlab_config
 from app.models.admin import (
     SETTING_KEY_ENABLED_NOTIFICATION_KINDS,
     SETTING_KEY_EXTERNAL_LINKS,
     SETTING_KEY_INTEGRATIONS,
+    SETTING_KEY_GITLAB,
     SETTING_KEY_LLM,
     SETTING_KEY_NAV_VISIBILITY,
     SETTING_KEY_PAUSED_CRON_JOBS,
@@ -35,6 +39,7 @@ from app.models.admin import (
 )
 from app.models.employee import Employee
 from app.models.notification import Notification
+from app.models.technology import TechnologyCatalogEntry
 from app.models.user import User
 from app.redis_pool import get_pool as get_arq_pool
 from app.notifications.service import publish_pending, record_notifications
@@ -47,6 +52,8 @@ from app.schemas.admin import (
     ExternalLink,
     ExternalLinksResponse,
     ExternalLinksUpdate,
+    GitLabConfigResponse,
+    GitLabConfigUpdate,
     IntegrationsResponse,
     IntegrationsUpdate,
     LLMConfigResponse,
@@ -61,11 +68,33 @@ from app.schemas.admin import (
     NotificationCleanupResult,
     NotificationKindsResponse,
     NotificationKindsUpdate,
+    TechnologyCatalogEntryPublic,
 )
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get(
+    "/technology-catalog",
+    response_model=list[TechnologyCatalogEntryPublic],
+)
+async def technology_catalog(
+    session: SessionDep,
+    _current_user: AdminUser,
+):
+    """Справочник сигналов распознавания технологий, доступный только администраторам."""
+    return list(
+        (
+            await session.execute(
+                select(TechnologyCatalogEntry).order_by(
+                    TechnologyCatalogEntry.type,
+                    TechnologyCatalogEntry.name,
+                )
+            )
+        ).scalars()
+    )
 
 
 # Известные nav-ключи UI (источник истины для матрицы видимости).
@@ -74,6 +103,7 @@ NAV_KEYS: list[str] = [
     "dashboard",
     "employees",
     "projects",
+    "technology_radar",
     "departments",
     "assignments",
     "rotations",
@@ -108,6 +138,7 @@ NOTIFICATION_KINDS: list[str] = [
     "rotation_cancelled",
     "rotation_suggestion",
     "self_review",
+    "technology_attention",
 ]
 
 
@@ -115,9 +146,7 @@ NOTIFICATION_KINDS: list[str] = [
 
 
 @router.get("/nav-visibility", response_model=NavVisibilityResponse)
-async def get_nav_visibility_endpoint(
-    session: SessionDep, _current_user: AdminUser
-):
+async def get_nav_visibility_endpoint(session: SessionDep, _current_user: AdminUser):
     """Текущая карта видимости nav-разделов: {nav_key: {role: bool}}.
     Если раздела нет в map'е — он видим для всех ролей."""
     stored = await get_nav_visibility(session)
@@ -140,19 +169,13 @@ async def put_nav_visibility(
     cleaned: dict[str, dict[str, bool]] = {}
     for nav, roles in payload.items.items():
         if nav not in NAV_KEYS:
-            raise HTTPException(
-                status_code=400, detail=f"Неизвестный nav-ключ: {nav}"
-            )
+            raise HTTPException(status_code=400, detail=f"Неизвестный nav-ключ: {nav}")
         cleaned[nav] = {}
         for role, val in roles.items():
             if role not in ALL_ROLES:
-                raise HTTPException(
-                    status_code=400, detail=f"Неизвестная роль: {role}"
-                )
+                raise HTTPException(status_code=400, detail=f"Неизвестная роль: {role}")
             cleaned[nav][role] = bool(val)
-    await set_setting(
-        session, SETTING_KEY_NAV_VISIBILITY, cleaned, current_user.id
-    )
+    await set_setting(session, SETTING_KEY_NAV_VISIBILITY, cleaned, current_user.id)
     await session.commit()
     return await get_nav_visibility_endpoint(session, current_user)
 
@@ -160,28 +183,20 @@ async def put_nav_visibility(
 # ----- Notifications: kind toggles -----------------------------------------
 
 
-@router.get(
-    "/notifications/kinds", response_model=NotificationKindsResponse
-)
-async def get_notification_kinds(
-    session: SessionDep, _current_user: AdminUser
-):
+@router.get("/notifications/kinds", response_model=NotificationKindsResponse)
+async def get_notification_kinds(session: SessionDep, _current_user: AdminUser):
     enabled = await get_enabled_notification_kinds(session)
     full = {k: enabled.get(k, True) for k in NOTIFICATION_KINDS}
-    return NotificationKindsResponse(
-        enabled=full, all_known_kinds=NOTIFICATION_KINDS
-    )
+    return NotificationKindsResponse(enabled=full, all_known_kinds=NOTIFICATION_KINDS)
 
 
-@router.put(
-    "/notifications/kinds", response_model=NotificationKindsResponse
-)
+@router.put("/notifications/kinds", response_model=NotificationKindsResponse)
 async def put_notification_kinds(
     payload: NotificationKindsUpdate,
     session: SessionDep,
     current_user: AdminUser,
 ):
-    cleaned = {
+    cleaned: dict[str, bool] = {
         k: bool(v) for k, v in payload.enabled.items() if k in NOTIFICATION_KINDS
     }
     await set_setting(
@@ -197,9 +212,7 @@ async def put_notification_kinds(
 # ----- Notifications: admin view -------------------------------------------
 
 
-@router.get(
-    "/notifications", response_model=list[NotificationAdminPublic]
-)
+@router.get("/notifications", response_model=list[NotificationAdminPublic])
 async def list_all_notifications(
     session: SessionDep,
     _current_user: AdminUser,
@@ -238,9 +251,7 @@ async def list_all_notifications(
 # ----- Notifications: broadcast --------------------------------------------
 
 
-@router.post(
-    "/notifications/broadcast", response_model=NotificationBroadcastResult
-)
+@router.post("/notifications/broadcast", response_model=NotificationBroadcastResult)
 async def broadcast_notification(
     payload: NotificationBroadcastRequest,
     session: SessionDep,
@@ -272,18 +283,16 @@ async def broadcast_notification(
 # ----- Notifications: cleanup ----------------------------------------------
 
 
-@router.post(
-    "/notifications/cleanup", response_model=NotificationCleanupResult
-)
+@router.post("/notifications/cleanup", response_model=NotificationCleanupResult)
 async def cleanup_notifications(
     payload: NotificationCleanupRequest,
     session: SessionDep,
     _current_user: AdminUser,
 ):
     cutoff = datetime.now(UTC) - timedelta(days=payload.older_than_days)
-    res = await session.execute(
-        delete(Notification).where(Notification.created_at < cutoff)
-    )
+    res = await session.execute(delete(Notification).where(Notification.created_at < cutoff))
+    if not isinstance(res, CursorResult):
+        raise RuntimeError("Ожидался CursorResult при удалении уведомлений")
     await session.commit()
     return NotificationCleanupResult(deleted=int(res.rowcount or 0))
 
@@ -346,17 +355,13 @@ async def set_cron_pause(
         raise HTTPException(status_code=404, detail="Неизвестный cron")
     paused = await get_paused_cron_jobs(session)
     paused[name] = bool(payload.paused)
-    await set_setting(
-        session, SETTING_KEY_PAUSED_CRON_JOBS, paused, current_user.id
-    )
+    await set_setting(session, SETTING_KEY_PAUSED_CRON_JOBS, paused, current_user.id)
     await session.commit()
     return {"name": name, "paused": paused[name]}
 
 
 @router.post("/cron/{name}/run")
-async def trigger_cron_now(
-    name: str, _session: SessionDep, current_user: AdminUser
-):
+async def trigger_cron_now(name: str, _session: SessionDep, current_user: AdminUser):
     """Запустить cron-задачу немедленно в фоне (не блокируем HTTP-ответ)."""
     if not any(j["name"] == name for j in KNOWN_CRON_JOBS):
         raise HTTPException(status_code=404, detail="Неизвестный cron")
@@ -375,13 +380,9 @@ async def trigger_cron_now(
 
 
 @router.get("/external-links", response_model=ExternalLinksResponse)
-async def get_external_links_endpoint(
-    session: SessionDep, _current_user: AdminUser
-):
+async def get_external_links_endpoint(session: SessionDep, _current_user: AdminUser):
     links = await get_external_links(session)
-    return ExternalLinksResponse(
-        links=[ExternalLink(**link) for link in links]
-    )
+    return ExternalLinksResponse(links=[ExternalLink(**link) for link in links])
 
 
 @router.put("/external-links", response_model=ExternalLinksResponse)
@@ -392,9 +393,7 @@ async def put_external_links(
 ):
     """Перезаписать список внешних ссылок целиком (DSTracker, CodeBuddy и т.п.)."""
     data = {"links": [link.model_dump() for link in payload.links]}
-    await set_setting(
-        session, SETTING_KEY_EXTERNAL_LINKS, data, current_user.id
-    )
+    await set_setting(session, SETTING_KEY_EXTERNAL_LINKS, data, current_user.id)
     await session.commit()
     return ExternalLinksResponse(links=payload.links)
 
@@ -403,9 +402,7 @@ async def put_external_links(
 
 
 @router.get("/integrations", response_model=IntegrationsResponse)
-async def get_integrations_endpoint(
-    session: SessionDep, _current_user: AdminUser
-):
+async def get_integrations_endpoint(session: SessionDep, _current_user: AdminUser):
     """Текущая карта on/off интеграций. Все флаги опциональны, дефолт — false."""
     flags = await get_integrations(session)
     return IntegrationsResponse(
@@ -421,11 +418,52 @@ async def put_integrations(
 ):
     """Перезаписать карту флагов интеграций."""
     cleaned = {"codebuddy_live": bool(payload.codebuddy_live)}
-    await set_setting(
-        session, SETTING_KEY_INTEGRATIONS, cleaned, current_user.id
-    )
+    await set_setting(session, SETTING_KEY_INTEGRATIONS, cleaned, current_user.id)
     await session.commit()
     return IntegrationsResponse(**cleaned)
+
+
+# ----- GitLab direct status sync -------------------------------------------
+
+
+@router.get("/gitlab", response_model=GitLabConfigResponse)
+async def get_gitlab_config(session: SessionDep, _current_user: AdminUser):
+    """Текущий GitLab-конфиг. Сам API token никогда не возвращается."""
+    config = await resolve_gitlab_config(session)
+    stored = await get_setting(session, SETTING_KEY_GITLAB)
+    return GitLabConfigResponse(
+        base_url=config.base_url,
+        api_token_set=bool(config.api_token),
+        api_token_source=config.token_source,
+        auto_sync_enabled=bool(stored.get("auto_sync_enabled", True)),
+    )
+
+
+@router.put("/gitlab", response_model=GitLabConfigResponse)
+async def put_gitlab_config(
+    payload: GitLabConfigUpdate,
+    session: SessionDep,
+    current_user: AdminUser,
+):
+    """Сохранить токен и флаг автоматики; пустой token оставляет текущий."""
+    stored = await get_setting(session, SETTING_KEY_GITLAB)
+    supplied_token = (payload.api_token or "").strip()
+    cleaned: dict[str, str | bool] = {
+        "auto_sync_enabled": bool(payload.auto_sync_enabled),
+    }
+    existing_admin_token = str(stored.get("api_token") or "").strip()
+    admin_token = supplied_token or existing_admin_token
+    if admin_token:
+        cleaned["api_token"] = admin_token
+    await set_setting(session, SETTING_KEY_GITLAB, cleaned, current_user.id)
+    await session.commit()
+    config = await resolve_gitlab_config(session)
+    return GitLabConfigResponse(
+        base_url=config.base_url,
+        api_token_set=bool(config.api_token),
+        api_token_source=config.token_source,
+        auto_sync_enabled=bool(cleaned["auto_sync_enabled"]),
+    )
 
 
 # ----- LLM (OpenAI-совместимый провайдер) ----------------------------------
@@ -435,9 +473,7 @@ async def put_integrations(
 async def get_llm_config(session: SessionDep, _current_user: AdminUser):
     """Текущий конфиг LLM (значения админ-панели поверх .env). Ключ не отдаём."""
     cfg = await resolve_ai_config(session)
-    return LLMConfigResponse(
-        base_url=cfg.base_url, model=cfg.model, api_key_set=cfg.configured
-    )
+    return LLMConfigResponse(base_url=cfg.base_url, model=cfg.model, api_key_set=cfg.configured)
 
 
 @router.put("/llm", response_model=LLMConfigResponse)
@@ -457,9 +493,7 @@ async def put_llm_config(
     await set_setting(session, SETTING_KEY_LLM, cleaned, current_user.id)
     await session.commit()
     cfg = await resolve_ai_config(session)
-    return LLMConfigResponse(
-        base_url=cfg.base_url, model=cfg.model, api_key_set=cfg.configured
-    )
+    return LLMConfigResponse(base_url=cfg.base_url, model=cfg.model, api_key_set=cfg.configured)
 
 
 @router.post("/llm/test", response_model=LLMTestResponse)
@@ -482,9 +516,7 @@ async def test_llm_config(session: SessionDep, _current_user: AdminUser):
             timeout=30,
         )
     except Exception as e:  # noqa: BLE001
-        return LLMTestResponse(
-            ok=False, reason=str(e)[:300], model=cfg.model, checked_at=now
-        )
+        return LLMTestResponse(ok=False, reason=str(e)[:300], model=cfg.model, checked_at=now)
     return LLMTestResponse(ok=True, model=cfg.model, checked_at=now)
 
 
@@ -529,9 +561,7 @@ async def codebuddy_list_developers(
     except CodeBuddyAPIError as e:
         code = e.status_code or 502
         http_code = 429 if code == 429 else 502
-        raise HTTPException(
-            status_code=http_code, detail=f"CodeBuddy: {e}"
-        ) from e
+        raise HTTPException(status_code=http_code, detail=f"CodeBuddy: {e}") from e
 
 
 @router.post("/codebuddy/sync-projects-full")
@@ -566,14 +596,10 @@ async def codebuddy_sync_projects_full(
     enqueued = 0
     for emp in employees:
         try:
-            await pool.enqueue_job(
-                "run_codebuddy_sync_projects", emp.id, True
-            )
+            await pool.enqueue_job("run_codebuddy_sync_projects", emp.id, True)
             enqueued += 1
         except Exception as e:  # noqa: BLE001
-            logger.warning(
-                "sync-projects-full: enqueue emp #%s failed: %s", emp.id, e
-            )
+            logger.warning("sync-projects-full: enqueue emp #%s failed: %s", emp.id, e)
     return {"enqueued": enqueued, "team_size": len(employees)}
 
 

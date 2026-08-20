@@ -33,11 +33,12 @@ from app.models.project import Project, ProjectMember
 from app.models.rotation import Rotation
 from app.models.self_review import SelfReview
 from app.models.vacancy import Vacancy
-from app.rotations.ranking import compute_candidates
+from app.rotations.ranking import CandidateRow, compute_candidates
 from app.schemas.dashboard import UpcomingMeeting
 from app.schemas.dashboard import (
     DashboardMetrics,
     DevActivitySummary,
+    DevLeaderboardEmployee,
     EmployeeRef,
     GapCompetencyItem,
     HiringStageBucket,
@@ -138,9 +139,7 @@ async def get_metrics(
         )
         last_by_emp = {eid: dt for eid, dt in last_q.all()}
 
-    assessed_year_ids = {
-        eid for eid, dt in last_by_emp.items() if dt and dt >= one_year_ago
-    }
+    assessed_year_ids = {eid for eid, dt in last_by_emp.items() if dt and dt >= one_year_ago}
     not_assessed = [e for e in employees if e.id not in assessed_year_ids]
     # сортируем сначала те, кого вообще не оценивали, потом по давности
     not_assessed.sort(
@@ -175,10 +174,7 @@ async def get_metrics(
         )
         for p in proc_q.scalars():
             if p.status == "open":
-                started = any(
-                    m.status == "done" or m.scheduled_at <= now_dt
-                    for m in p.meetings
-                )
+                started = any(m.status == "done" or m.scheduled_at <= now_dt for m in p.meetings)
                 if started:
                     procedures_open += 1
                 else:
@@ -187,9 +183,7 @@ async def get_metrics(
                 procedures_closed_last_12m += 1
 
     # gap-аналитика по сотрудникам с role+grade и хотя бы одной оценкой
-    employees_with_rg = [
-        e for e in employees if e.role_id and e.grade_id and e.id in last_by_emp
-    ]
+    employees_with_rg = [e for e in employees if e.role_id and e.grade_id and e.id in last_by_emp]
     avg_gap_score: float | None = None
     top_gap_competencies: list[GapCompetencyItem] = []
 
@@ -224,9 +218,7 @@ async def get_metrics(
                 and_(RoleProfile.role_id == rid, RoleProfile.grade_id == gid)
                 for rid, gid in rg_pairs
             ]
-            rp_q = await session.execute(
-                select(RoleProfile).where(or_(*conditions))
-            )
+            rp_q = await session.execute(select(RoleProfile).where(or_(*conditions)))
             for rp in rp_q.scalars():
                 if rp.required_level > 0:
                     required_by_rg_comp[(rp.role_id, rp.grade_id, rp.competency_id)] = (
@@ -281,9 +273,7 @@ async def get_metrics(
             items = [
                 GapCompetencyItem(
                     competency_id=cid,
-                    competency_name=(
-                        comp_by_id[cid].name if cid in comp_by_id else f"#{cid}"
-                    ),
+                    competency_name=(comp_by_id[cid].name if cid in comp_by_id else f"#{cid}"),
                     affected_count=len(gaps),
                     avg_gap=round(sum(gaps) / len(gaps), 2),
                     total_with_role=comp_total.get(cid, 0),
@@ -343,9 +333,7 @@ async def get_metrics(
     rotations_completed_12m = rot_12m_q.scalar() or 0
 
     rot_inprog_q = await session.execute(
-        select(func.count(Rotation.id)).where(
-            Rotation.status.in_(("proposed", "accepted"))
-        )
+        select(func.count(Rotation.id)).where(Rotation.status.in_(("proposed", "accepted")))
     )
     rotations_in_progress = rot_inprog_q.scalar() or 0
 
@@ -363,7 +351,7 @@ async def get_metrics(
     )
     active_projects = list(active_proj_q.all())
 
-    all_candidates: list[tuple[int, str, "object"]] = []  # (project_id, name, candidate)
+    all_candidates: list[tuple[int, str, CandidateRow]] = []
     bus_alerts = 0
     for pid, pname in active_projects:
         cands = await compute_candidates(session, pid)
@@ -438,7 +426,9 @@ async def get_metrics(
         .where(Vacancy.created_by_id == owner_id)
         .group_by(Vacancy.status)
     )
-    vac_status: dict[str, int] = dict(vac_status_q.all())
+    vac_status: dict[str, int] = {
+        vacancy_status: count for vacancy_status, count in vac_status_q.all()
+    }
     vacancies_open = int(vac_status.get("open", 0))
     vacancies_closed = int(vac_status.get("closed", 0))
 
@@ -456,9 +446,9 @@ async def get_metrics(
         if stage_counts.get(s, 0) > 0
     ]
     candidates_total = sum(stage_counts.values())
-    candidates_in_pipeline = candidates_total - stage_counts.get(
-        "hired", 0
-    ) - stage_counts.get("rejected", 0)
+    candidates_in_pipeline = (
+        candidates_total - stage_counts.get("hired", 0) - stage_counts.get("rejected", 0)
+    )
 
     cand_added_q = await session.execute(
         select(func.count(CandidateProfile.id))
@@ -518,14 +508,12 @@ async def get_metrics(
         q = await session.execute(
             select(Project.id, Project.name).where(Project.id.in_(top_proj_ids))
         )
-        proj_names = dict(q.all())
+        proj_names = {project_id: name for project_id, name in q.all()}
     if top_dept_ids:
         q = await session.execute(
-            select(Department.id, Department.name).where(
-                Department.id.in_(top_dept_ids)
-            )
+            select(Department.id, Department.name).where(Department.id.in_(top_dept_ids))
         )
-        dept_names = dict(q.all())
+        dept_names = {department_id: name for department_id, name in q.all()}
     top_vacancies = [
         HiringTopVacancy(
             id=v.id,
@@ -546,9 +534,7 @@ async def get_metrics(
         procedures_planned=procedures_planned,
         procedures_open=procedures_open,
         procedures_closed_last_12m=procedures_closed_last_12m,
-        employees_with_role_grade=sum(
-            1 for e in employees if e.role_id and e.grade_id
-        ),
+        employees_with_role_grade=sum(1 for e in employees if e.role_id and e.grade_id),
         avg_gap_score=avg_gap_score,
         top_gap_competencies=top_gap_competencies,
         assessments_last_30d=assessments_30d,
@@ -608,9 +594,7 @@ async def get_upcoming_meetings(
         return []
 
     # все «свои» (включая кандидатов) — для встреч
-    eq = await session.execute(
-        select(Employee).where(Employee.owner_id == owner_id)
-    )
+    eq = await session.execute(select(Employee).where(Employee.owner_id == owner_id))
     owned = {e.id: e for e in eq.scalars()}
     if not owned:
         return []
@@ -671,6 +655,8 @@ async def get_upcoming_meetings(
         emp = owned.get(rv.employee_id)
         if emp is None:
             continue
+        if rv.scheduled_1on1_at is None:
+            continue
         items.append(
             UpcomingMeeting(
                 kind="self_review",
@@ -723,9 +709,7 @@ async def get_team_metrics(
         )
 
     eq = await session.execute(
-        select(Employee).where(
-            Employee.owner_id == owner_id, Employee.kind == "employee"
-        )
+        select(Employee).where(Employee.owner_id == owner_id, Employee.kind == "employee")
     )
     employees = list(eq.scalars())
 
@@ -788,31 +772,27 @@ async def get_team_metrics(
     grades_buckets.sort(key=lambda b: b.sort_order)
 
     roles_buckets = [
-        TeamRoleBucket(
-            role_id=rid, role_name=roles_by_id[rid].name, count=cnt
-        )
+        TeamRoleBucket(role_id=rid, role_name=roles_by_id[rid].name, count=cnt)
         for rid, cnt in role_count.items()
         if rid in roles_by_id
     ]
     roles_buckets.sort(key=lambda b: (-b.count, b.role_name))
 
     # наняты в этом году (включая ушедших — фиксируем факт найма)
-    hired_year = [
-        e
-        for e in employees
-        if e.hired_at is not None and e.hired_at >= year_start
-    ]
+    hired_year = [e for e in employees if e.hired_at is not None and e.hired_at >= year_start]
     # ушли в этом году
-    left_year = [
-        e for e in employees if e.left_at is not None and e.left_at >= year_start
-    ]
+    left_year = [e for e in employees if e.left_at is not None and e.left_at >= year_start]
 
     def _ev(e: Employee, at: date) -> TeamRecentEvent:
         return TeamRecentEvent(
             employee_id=e.id,
             full_name=e.full_name,
-            role_name=roles_by_id[e.role_id].name if e.role_id and e.role_id in roles_by_id else None,
-            grade_code=grades_by_id[e.grade_id].code if e.grade_id and e.grade_id in grades_by_id else None,
+            role_name=roles_by_id[e.role_id].name
+            if e.role_id and e.role_id in roles_by_id
+            else None,
+            grade_code=grades_by_id[e.grade_id].code
+            if e.grade_id and e.grade_id in grades_by_id
+            else None,
             at=at,
         )
 
@@ -841,7 +821,7 @@ async def get_team_metrics(
 # Лимит на параллельные запросы к CodeBuddy в одном dev-activity вызове.
 # При CodeBuddy rate-limit 60 req/min параллельный пакет из 25 запросов
 # отрабатывает за < 5с (с уже прогретыми Redis-кэшами — мгновенно).
-_DEV_ACTIVITY_MAX_EMPLOYEES = 30
+_DEV_ACTIVITY_MAX_EMPLOYEES = 20
 
 
 @router.get("/dev-activity", response_model=DevActivitySummary)
@@ -860,8 +840,12 @@ async def get_dev_activity(
     owner_id = effective_owner_id(current_user, manager_id)
     if owner_id is None:
         return DevActivitySummary(
-            enabled=False, team_size=0, with_metrics=0,
-            total_mrs=0, stale_total=0, wip_total=0,
+            enabled=False,
+            team_size=0,
+            with_metrics=0,
+            total_mrs=0,
+            stale_total=0,
+            wip_total=0,
         )
 
     if not await is_codebuddy_live(session):
@@ -897,21 +881,22 @@ async def get_dev_activity(
     team_size = len(employees)
     if not employees:
         return DevActivitySummary(
-            enabled=True, team_size=0, with_metrics=0,
-            total_mrs=0, stale_total=0, wip_total=0,
-            period_from=period_from, period_to=period_to,
+            enabled=True,
+            team_size=0,
+            with_metrics=0,
+            total_mrs=0,
+            stale_total=0,
+            wip_total=0,
+            period_from=period_from,
+            period_to=period_to,
         )
 
     targets = employees[:_DEV_ACTIVITY_MAX_EMPLOYEES]
 
     async def _one(emp: Employee):
         try:
-            snap = await codebuddy_service.get_dev_metrics(
-                emp, period_from, period_to
-            )
-            comp = await codebuddy_service.get_extracted_competencies(
-                emp, period_from, period_to
-            )
+            snap = await codebuddy_service.get_dev_metrics(emp, period_from, period_to)
+            comp = await codebuddy_service.get_extracted_competencies(emp, period_from, period_to)
             return emp, snap, comp
         except CodeBuddyAPIError as e:
             logger.warning("dev-activity: %s skip due to CodeBuddy error: %s", emp.id, e)
@@ -927,6 +912,7 @@ async def get_dev_activity(
     stale_total = 0
     wip_total = 0
     with_metrics = 0
+    leaderboard: list[DevLeaderboardEmployee] = []
 
     for emp, snap, comp in results:
         if snap is not None:
@@ -936,11 +922,21 @@ async def get_dev_activity(
             quality_n += 1
             stale_total += snap.stale_count
             wip_total += snap.wip_count
-            stale_prs = [w for w in (snap.wip_mrs or []) if w.is_stale]
-            if stale_prs:
-                stale_prs_sorted = sorted(
-                    stale_prs, key=lambda w: -w.age_days
+            leaderboard.append(
+                DevLeaderboardEmployee(
+                    employee_id=emp.id,
+                    full_name=emp.full_name,
+                    total_mrs=snap.total_mrs,
+                    avg_quality_ratio=float(snap.avg_quality_ratio or 0),
+                    comments_given=snap.comments_given,
+                    avg_time_to_merge_hours=snap.avg_time_to_merge_hours,
+                    tests_ratio=(snap.mr_with_tests / snap.total_mrs) if snap.total_mrs else 0,
+                    stale_count=snap.stale_count,
                 )
+            )
+            stale_prs = [w for w in (snap.wip_mrs or []) if w.is_stale and w.state == "open"]
+            if stale_prs:
+                stale_prs_sorted = sorted(stale_prs, key=lambda w: -w.age_days)
                 oldest = stale_prs_sorted[0]
                 stale_alerts.append(
                     StaleMrAlert(
@@ -996,4 +992,5 @@ async def get_dev_activity(
         wip_total=wip_total,
         stale_alerts=stale_alerts[:10],
         top_competencies=top_competencies,
+        leaderboard=leaderboard,
     )

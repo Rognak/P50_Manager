@@ -1,4 +1,5 @@
 """Эндпоинты ротаций: вкладка по проекту (просмотр + refresh) и lifecycle ротации."""
+
 from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, HTTPException, Query
@@ -43,9 +44,7 @@ lifecycle = APIRouter(prefix="/rotations", tags=["rotations"])
 
 
 @router.get("", response_model=RotationsPanel)
-async def get_project_rotations(
-    project_id: int, session: SessionDep, _current_user: CurrentUser
-):
+async def get_project_rotations(project_id: int, session: SessionDep, _current_user: CurrentUser):
     proj = await session.get(Project, project_id)
     if proj is None:
         raise HTTPException(status_code=404, detail="Проект не найден")
@@ -59,9 +58,7 @@ async def get_project_rotations(
     # owner_name — у каждого кандидата
     owner_ids = {c.owner_id for c in candidates}
     if owner_ids:
-        uq = await session.execute(
-            select(User.id, User.full_name).where(User.id.in_(owner_ids))
-        )
+        uq = await session.execute(select(User.id, User.full_name).where(User.id.in_(owner_ids)))
         owner_name_by_id = {uid: name for uid, name in uq.all()}
     else:
         owner_name_by_id = {}
@@ -73,9 +70,7 @@ async def get_project_rotations(
             RotationSuggestion.employee_id.in_(emp_ids),
         )
     )
-    sug_by_emp: dict[int, RotationSuggestion] = {
-        s.employee_id: s for s in sq.scalars()
-    }
+    sug_by_emp: dict[int, RotationSuggestion] = {s.employee_id: s for s in sq.scalars()}
 
     # активные (queued/running) AIJob'ы по тем же парам
     aq = await session.execute(
@@ -91,23 +86,21 @@ async def get_project_rotations(
     # имена целевых проектов
     target_ids: set[int] = set()
     for s in sug_by_emp.values():
-        for tid in (s.target_project_ids or []):
+        for tid in s.target_project_ids or []:
             target_ids.add(tid)
     target_info: dict[int, tuple[str, str | None]] = {}
     if target_ids:
         pq = await session.execute(
-            select(Project.id, Project.name, Project.code).where(
-                Project.id.in_(target_ids)
-            )
+            select(Project.id, Project.name, Project.code).where(Project.id.in_(target_ids))
         )
         target_info = {pid: (name, code) for pid, name, code in pq.all()}
 
     items: list[RotationCandidatePublic] = []
     for c in candidates:
-        s = sug_by_emp.get(c.employee_id)
+        suggestion = sug_by_emp.get(c.employee_id)
         targets = []
-        if s:
-            for tid in (s.target_project_ids or []):
+        if suggestion:
+            for tid in suggestion.target_project_ids or []:
                 name_code = target_info.get(tid)
                 if name_code is None:
                     continue
@@ -115,9 +108,7 @@ async def get_project_rotations(
                     {"project_id": tid, "project_name": name_code[0], "code": name_code[1]}
                 )
 
-        repl_assess = await assess_replacement_need(
-            session, c.employee_id, project_id
-        )
+        repl_assess = await assess_replacement_need(session, c.employee_id, project_id)
 
         items.append(
             RotationCandidatePublic(
@@ -178,9 +169,7 @@ async def refresh_candidate_suggestion(
         )
     )
     if pmq.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=404, detail="Сотрудник не в активном составе проекта"
-        )
+        raise HTTPException(status_code=404, detail="Сотрудник не в активном составе проекта")
 
     # не плодим параллельно
     aq = await session.execute(
@@ -193,9 +182,7 @@ async def refresh_candidate_suggestion(
     )
     existing = aq.scalar_one_or_none()
     if existing is not None:
-        return JobAccepted(
-            job_id=existing, employee_id=employee_id, from_project_id=project_id
-        )
+        return JobAccepted(job_id=existing, employee_id=employee_id, from_project_id=project_id)
 
     job = AIJob(
         kind="rotation_suggestion",
@@ -213,9 +200,7 @@ async def refresh_candidate_suggestion(
     pool = get_pool()
     await pool.enqueue_job("run_rotation_suggestion", job.id)
 
-    return JobAccepted(
-        job_id=job.id, employee_id=employee_id, from_project_id=project_id
-    )
+    return JobAccepted(job_id=job.id, employee_id=employee_id, from_project_id=project_id)
 
 
 @router.get("/{employee_id}/replacements", response_model=ReplacementsResponse)
@@ -230,9 +215,7 @@ async def get_replacement_candidates(
 
     Кандидаты — участники целевого проекта, чьи ★-компетенции пересекаются
     со «слотом» уходящего на исходном проекте."""
-    res = await suggest_replacements(
-        session, employee_id, project_id, to_project_id, limit=5
-    )
+    res = await suggest_replacements(session, employee_id, project_id, to_project_id, limit=5)
 
     def _pub(rc) -> ReplacementCandidatePublic:
         return ReplacementCandidatePublic(
@@ -298,27 +281,12 @@ async def _required_approvers(
 
 async def _to_rotation_public(session, rot: Rotation) -> RotationPublic:
     emp = await session.get(Employee, rot.employee_id)
-    fp = (
-        await session.get(Project, rot.from_project_id)
-        if rot.from_project_id
-        else None
-    )
-    tp = (
-        await session.get(Project, rot.to_project_id)
-        if rot.to_project_id
-        else None
-    )
+    fp = await session.get(Project, rot.from_project_id) if rot.from_project_id else None
+    tp = await session.get(Project, rot.to_project_id) if rot.to_project_id else None
     from app.models.project import Product  # локально, чтобы избежать циклов
-    f_prod = (
-        await session.get(Product, rot.from_product_id)
-        if rot.from_product_id
-        else None
-    )
-    t_prod = (
-        await session.get(Product, rot.to_product_id)
-        if rot.to_product_id
-        else None
-    )
+
+    f_prod = await session.get(Product, rot.from_product_id) if rot.from_product_id else None
+    t_prod = await session.get(Product, rot.to_product_id) if rot.to_product_id else None
     repl = (
         await session.get(Employee, rot.replacement_employee_id)
         if rot.replacement_employee_id
@@ -331,9 +299,7 @@ async def _to_rotation_public(session, rot: Rotation) -> RotationPublic:
     )
     approvals = list(aq.scalars())
     user_ids.update(a.user_id for a in approvals)
-    uq = await session.execute(
-        select(User.id, User.full_name).where(User.id.in_(user_ids))
-    )
+    uq = await session.execute(select(User.id, User.full_name).where(User.id.in_(user_ids)))
     name_by_id = {uid: name for uid, name in uq.all()}
 
     return RotationPublic(
@@ -482,9 +448,7 @@ async def list_all_candidates(session: SessionDep, _current_user: CurrentUser):
                 RotationSuggestion.employee_id.in_(emp_ids),
             )
         )
-        sug_by_emp: dict[int, RotationSuggestion] = {
-            s.employee_id: s for s in sq.scalars()
-        }
+        sug_by_emp: dict[int, RotationSuggestion] = {s.employee_id: s for s in sq.scalars()}
 
         aq = await session.execute(
             select(AIJob.employee_id).where(
@@ -498,28 +462,24 @@ async def list_all_candidates(session: SessionDep, _current_user: CurrentUser):
 
         target_ids: set[int] = set()
         for s in sug_by_emp.values():
-            for tid in (s.target_project_ids or []):
+            for tid in s.target_project_ids or []:
                 target_ids.add(tid)
         target_info: dict[int, tuple[str, str | None]] = {}
         if target_ids:
             tpq = await session.execute(
-                select(Project.id, Project.name, Project.code).where(
-                    Project.id.in_(target_ids)
-                )
+                select(Project.id, Project.name, Project.code).where(Project.id.in_(target_ids))
             )
             target_info = {tid: (n, c) for tid, n, c in tpq.all()}
 
         for c in candidates:
-            s = sug_by_emp.get(c.employee_id)
+            suggestion = sug_by_emp.get(c.employee_id)
             targets = []
-            if s:
-                for tid in (s.target_project_ids or []):
+            if suggestion:
+                for tid in suggestion.target_project_ids or []:
                     nc = target_info.get(tid)
                     if nc is None:
                         continue
-                    targets.append(
-                        {"project_id": tid, "project_name": nc[0], "code": nc[1]}
-                    )
+                    targets.append({"project_id": tid, "project_name": nc[0], "code": nc[1]})
 
             repl_assess = await assess_replacement_need(session, c.employee_id, pid)
 
@@ -571,11 +531,11 @@ async def _required_approvers_product(
 ) -> set[int]:
     """Авто-вычисляемые согласующие для product-ротации:
 
-      1) владелец исходного продукта (Product.created_by)
-      2) владелец целевого продукта
-      3) руководитель сотрудника (employee.owner_id)
-      4) PM исходного продукта (Product.product_manager_id), если задан
-      5) PM целевого продукта, если задан
+    1) владелец исходного продукта (Product.created_by)
+    2) владелец целевого продукта
+    3) руководитель сотрудника (employee.owner_id)
+    4) PM исходного продукта (Product.product_manager_id), если задан
+    5) PM целевого продукта, если задан
     """
     from app.models.project import Product
 
@@ -596,9 +556,7 @@ async def _required_approvers_product(
     return approvers
 
 
-@lifecycle.get(
-    "/approvers-preview", response_model=list[RotationApproverPreview]
-)
+@lifecycle.get("/approvers-preview", response_model=list[RotationApproverPreview])
 async def approvers_preview(
     session: SessionDep,
     current_user: CurrentUser,
@@ -618,9 +576,7 @@ async def approvers_preview(
     fp = await session.get(Product, from_product_id)
     tp = await session.get(Product, to_product_id)
     if emp is None or fp is None or tp is None:
-        raise HTTPException(
-            status_code=404, detail="Сотрудник или продукт не найден"
-        )
+        raise HTTPException(status_code=404, detail="Сотрудник или продукт не найден")
 
     # user_id → список причин
     reasons: dict[int, list[str]] = {}
@@ -639,9 +595,7 @@ async def approvers_preview(
     if not reasons:
         return []
 
-    uq = await session.execute(
-        select(User.id, User.full_name).where(User.id.in_(reasons.keys()))
-    )
+    uq = await session.execute(select(User.id, User.full_name).where(User.id.in_(reasons.keys())))
     name_by_id = {uid: name for uid, name in uq.all()}
 
     return [
@@ -661,15 +615,17 @@ async def _propose_rotation_for_product(
     """Создание ротации на уровне продукта."""
     from app.models.project import Product, ProductMember
 
-    if payload.from_product_id == payload.to_product_id:
-        raise HTTPException(
-            status_code=400, detail="Целевой продукт совпадает с исходным"
-        )
+    if payload.from_product_id is None or payload.to_product_id is None:
+        raise HTTPException(status_code=400, detail="Не указаны исходный и целевой продукты")
+    from_product_id = payload.from_product_id
+    to_product_id = payload.to_product_id
+    if from_product_id == to_product_id:
+        raise HTTPException(status_code=400, detail="Целевой продукт совпадает с исходным")
 
     pmq = await session.execute(
         select(ProductMember).where(
             ProductMember.employee_id == payload.employee_id,
-            ProductMember.product_id == payload.from_product_id,
+            ProductMember.product_id == from_product_id,
             ProductMember.left_at.is_(None),
         )
     )
@@ -680,15 +636,13 @@ async def _propose_rotation_for_product(
             detail="Сотрудник не в активном составе исходного продукта",
         )
     if from_member.rotation_locked:
-        raise HTTPException(
-            status_code=400, detail="Участник заморожен от ротации"
-        )
+        raise HTTPException(status_code=400, detail="Участник заморожен от ротации")
 
     # Незакрытая ротация для пары (employee, from_product)?
     eq = await session.execute(
         select(Rotation).where(
             Rotation.employee_id == payload.employee_id,
-            Rotation.from_product_id == payload.from_product_id,
+            Rotation.from_product_id == from_product_id,
             Rotation.status.in_(("proposed", "accepted")),
         )
     )
@@ -701,8 +655,8 @@ async def _propose_rotation_for_product(
     auto_approvers = await _required_approvers_product(
         session,
         payload.employee_id,
-        payload.from_product_id,
-        payload.to_product_id,
+        from_product_id,
+        to_product_id,
     )
     extra = set(payload.extra_approver_ids or [])
     extra.discard(current_user.id)
@@ -785,9 +739,7 @@ async def _propose_rotation_for_product(
 
 
 @lifecycle.post("", response_model=RotationPublic, status_code=201)
-async def propose_rotation(
-    payload: RotationCreate, session: SessionDep, current_user: MutatorUser
-):
+async def propose_rotation(payload: RotationCreate, session: SessionDep, current_user: MutatorUser):
     """Создать запрос на ротацию. Если согласований не требуется — сразу status='accepted'.
 
     Новый формат: payload.from_product_id + to_product_id (ротация между продуктами).
@@ -804,9 +756,7 @@ async def propose_rotation(
             detail="Нужно указать либо (from_product_id, to_product_id), либо (from_project_id, to_project_id)",
         )
     if payload.from_project_id == payload.to_project_id:
-        raise HTTPException(
-            status_code=400, detail="Целевой проект совпадает с исходным"
-        )
+        raise HTTPException(status_code=400, detail="Целевой проект совпадает с исходным")
 
     pmq = await session.execute(
         select(ProjectMember).where(
@@ -821,9 +771,7 @@ async def propose_rotation(
             status_code=400, detail="Сотрудник не в активном составе исходного проекта"
         )
     if from_member.rotation_locked:
-        raise HTTPException(
-            status_code=400, detail="Участник заморожен от ротации"
-        )
+        raise HTTPException(status_code=400, detail="Участник заморожен от ротации")
 
     # уже есть незакрытая ротация для этой пары?
     eq = await session.execute(
@@ -834,9 +782,7 @@ async def propose_rotation(
         )
     )
     if eq.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=409, detail="Уже есть незакрытая ротация для этой пары"
-        )
+        raise HTTPException(status_code=409, detail="Уже есть незакрытая ротация для этой пары")
 
     auto_approvers = await _required_approvers(
         session,
@@ -929,9 +875,7 @@ async def propose_rotation(
 
 
 @lifecycle.get("/{rotation_id}", response_model=RotationPublic)
-async def get_rotation(
-    rotation_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def get_rotation(rotation_id: int, session: SessionDep, current_user: CurrentUser):
     from app.api.deps import is_product_manager
 
     rot = await session.get(Rotation, rotation_id)
@@ -968,6 +912,7 @@ async def list_rotations(
         q = q.where(Rotation.employee_id == employee_id)
     if project_id:
         from sqlalchemy import or_
+
         q = q.where(
             or_(Rotation.from_project_id == project_id, Rotation.to_project_id == project_id)
         )
@@ -1000,9 +945,7 @@ async def list_rotations(
     emp_name = {eid: name for eid, name in eq.all()}
     pname: dict[int, str] = {}
     if proj_ids:
-        pq = await session.execute(
-            select(Project.id, Project.name).where(Project.id.in_(proj_ids))
-        )
+        pq = await session.execute(select(Project.id, Project.name).where(Project.id.in_(proj_ids)))
         pname = {pid: name for pid, name in pq.all()}
     prodname: dict[int, str] = {}
     if prod_ids:
@@ -1017,19 +960,13 @@ async def list_rotations(
             employee_id=r.employee_id,
             employee_name=emp_name.get(r.employee_id, ""),
             from_project_id=r.from_project_id,
-            from_project_name=(
-                pname.get(r.from_project_id) if r.from_project_id else None
-            ),
+            from_project_name=(pname.get(r.from_project_id) if r.from_project_id else None),
             to_project_id=r.to_project_id,
             to_project_name=pname.get(r.to_project_id) if r.to_project_id else None,
             from_product_id=r.from_product_id,
-            from_product_name=(
-                prodname.get(r.from_product_id) if r.from_product_id else None
-            ),
+            from_product_name=(prodname.get(r.from_product_id) if r.from_product_id else None),
             to_product_id=r.to_product_id,
-            to_product_name=(
-                prodname.get(r.to_product_id) if r.to_product_id else None
-            ),
+            to_product_name=(prodname.get(r.to_product_id) if r.to_product_id else None),
             status=r.status,
             proposed_at=r.proposed_at,
             completed_at=r.completed_at,
@@ -1054,7 +991,8 @@ async def submit_approval(
         raise HTTPException(status_code=404, detail="Ротация не найдена")
     if rot.status != "proposed":
         raise HTTPException(
-            status_code=400, detail=f"Голосовать можно только в статусе proposed (сейчас {rot.status})"
+            status_code=400,
+            detail=f"Голосовать можно только в статусе proposed (сейчас {rot.status})",
         )
 
     aq = await session.execute(
@@ -1065,9 +1003,7 @@ async def submit_approval(
     )
     appr = aq.scalar_one_or_none()
     if appr is None:
-        raise HTTPException(
-            status_code=403, detail="Вы не в списке согласующих этой ротации"
-        )
+        raise HTTPException(status_code=403, detail="Вы не в списке согласующих этой ротации")
     if appr.decision is not None:
         raise HTTPException(status_code=400, detail="Решение уже принято")
 
@@ -1122,9 +1058,7 @@ async def submit_approval(
 
 
 @lifecycle.post("/{rotation_id}/cancel", response_model=RotationPublic)
-async def cancel_rotation(
-    rotation_id: int, session: SessionDep, current_user: MutatorUser
-):
+async def cancel_rotation(rotation_id: int, session: SessionDep, current_user: MutatorUser):
     """Отменить ротацию. Может только инициатор. Доступно в proposed/accepted (до completed)."""
     rot = await session.get(Rotation, rotation_id)
     if rot is None:
@@ -1141,9 +1075,7 @@ async def cancel_rotation(
 
     # уведомить approver'ов (кроме инициатора)
     appr_q = await session.execute(
-        select(RotationApproval.user_id).where(
-            RotationApproval.rotation_id == rotation_id
-        )
+        select(RotationApproval.user_id).where(RotationApproval.rotation_id == rotation_id)
     )
     approver_ids = [uid for (uid,) in appr_q.all()]
     emp_obj = await session.get(Employee, rot.employee_id)
@@ -1164,9 +1096,7 @@ async def cancel_rotation(
 
 
 @lifecycle.post("/{rotation_id}/complete", response_model=RotationPublic)
-async def complete_rotation(
-    rotation_id: int, session: SessionDep, current_user: MutatorUser
-):
+async def complete_rotation(rotation_id: int, session: SessionDep, current_user: MutatorUser):
     """Зафиксировать факт ротации. Доступно в accepted.
 
     Эффект: на исходном membership ставится left_at=today, на целевом проекте
@@ -1191,9 +1121,7 @@ async def complete_rotation(
     )
     from_pm = fmq.scalar_one_or_none()
     if from_pm is None:
-        raise HTTPException(
-            status_code=400, detail="Не найден membership в исходном проекте"
-        )
+        raise HTTPException(status_code=400, detail="Не найден membership в исходном проекте")
     from_pm.left_at = today
 
     tmq = await session.execute(
@@ -1220,9 +1148,7 @@ async def complete_rotation(
 
     # уведомить approver'ов + владельца сотрудника
     appr_q = await session.execute(
-        select(RotationApproval.user_id).where(
-            RotationApproval.rotation_id == rotation_id
-        )
+        select(RotationApproval.user_id).where(RotationApproval.rotation_id == rotation_id)
     )
     approver_ids = [uid for (uid,) in appr_q.all()]
     emp_obj = await session.get(Employee, rot.employee_id)
@@ -1236,9 +1162,7 @@ async def complete_rotation(
         recipient_user_ids=targets,
         kind="rotation_completed",
         title=f"Ротация завершена: {emp_obj.full_name if emp_obj else 'сотрудник'}",
-        body=(
-            f"{fp_obj.name if fp_obj else '?'} → {tp_obj.name if tp_obj else '?'}"
-        ),
+        body=(f"{fp_obj.name if fp_obj else '?'} → {tp_obj.name if tp_obj else '?'}"),
         link=f"/rotations?id={rot.id}",
         payload={"rotation_id": rot.id},
         exclude_user_ids=[current_user.id],
@@ -1250,9 +1174,7 @@ async def complete_rotation(
 
 
 @lifecycle.post("/{rotation_id}/revert", response_model=RotationPublic)
-async def revert_rotation(
-    rotation_id: int, session: SessionDep, current_user: MutatorUser
-):
+async def revert_rotation(rotation_id: int, session: SessionDep, current_user: MutatorUser):
     """Откатить факт ротации. Доступно в completed.
 
     Эффект: с исходного membership снимается left_at, целевое membership удаляется.
@@ -1292,9 +1214,7 @@ async def revert_rotation(
     rot.reverted_by_id = current_user.id
 
     appr_q = await session.execute(
-        select(RotationApproval.user_id).where(
-            RotationApproval.rotation_id == rotation_id
-        )
+        select(RotationApproval.user_id).where(RotationApproval.rotation_id == rotation_id)
     )
     approver_ids = [uid for (uid,) in appr_q.all()]
     emp_obj = await session.get(Employee, rot.employee_id)

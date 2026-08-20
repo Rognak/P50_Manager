@@ -1,4 +1,5 @@
 """Hiring API: кандидаты, резюме, lifecycle (hire/reject), AI-задачи."""
+
 from datetime import UTC, date, datetime
 from urllib.parse import quote
 
@@ -33,9 +34,7 @@ from app.schemas.candidate import (
 
 router = APIRouter(prefix="/candidates", tags=["candidates"])
 
-DEFAULT_RESUME_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-)
+DEFAULT_RESUME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
 def _disposition(filename: str) -> str:
@@ -63,9 +62,7 @@ async def _load_owned(
     return emp, prof
 
 
-async def _to_public(
-    session, emp: Employee, prof: CandidateProfile
-) -> CandidatePublic:
+async def _to_public(session, emp: Employee, prof: CandidateProfile) -> CandidatePublic:
     expected_role = None
     if prof.expected_role_id:
         r = await session.get(Role, prof.expected_role_id)
@@ -133,13 +130,12 @@ async def list_candidates(
 ):
     """Кандидаты руководителя. Для core_team — выбранного manager_id; иначе пусто."""
     from app.api.deps import effective_owner_id, is_core_team
+
     owner_id = effective_owner_id(current_user, manager_id)
     if owner_id is None and is_core_team(current_user):
         return []
     q = (
-        select(
-            Employee, CandidateProfile, Role.name, Grade.code, Vacancy.title
-        )
+        select(Employee, CandidateProfile, Role.name, Grade.code, Vacancy.title)
         .join(CandidateProfile, CandidateProfile.employee_id == Employee.id)
         .outerjoin(Role, Role.id == CandidateProfile.expected_role_id)
         .outerjoin(Grade, Grade.id == CandidateProfile.expected_grade_id)
@@ -214,9 +210,7 @@ async def create_candidate(
 
 
 @router.get("/{candidate_id}", response_model=CandidatePublic)
-async def get_candidate(
-    candidate_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def get_candidate(candidate_id: int, session: SessionDep, current_user: CurrentUser):
     emp, prof = await _load_owned(session, candidate_id, current_user)
     return await _to_public(session, emp, prof)
 
@@ -256,9 +250,7 @@ async def update_candidate(
 
 
 @router.delete("/{candidate_id}", status_code=204)
-async def delete_candidate(
-    candidate_id: int, session: SessionDep, current_user: MutatorUser
-):
+async def delete_candidate(candidate_id: int, session: SessionDep, current_user: MutatorUser):
     emp, _ = await _load_owned(session, candidate_id, current_user)
     await session.delete(emp)
     await session.commit()
@@ -297,9 +289,7 @@ async def upload_resume(
 
 
 @router.delete("/{candidate_id}/resume", response_model=CandidatePublic)
-async def delete_resume(
-    candidate_id: int, session: SessionDep, current_user: MutatorUser
-):
+async def delete_resume(candidate_id: int, session: SessionDep, current_user: MutatorUser):
     emp, prof = await _load_owned(session, candidate_id, current_user)
     prof.resume_data = None
     prof.resume_filename = None
@@ -313,9 +303,7 @@ async def delete_resume(
 
 
 @router.get("/{candidate_id}/resume")
-async def download_resume(
-    candidate_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def download_resume(candidate_id: int, session: SessionDep, current_user: CurrentUser):
     _, prof = await _load_owned(session, candidate_id, current_user)
     if prof.resume_data is None:
         raise HTTPException(status_code=404, detail="Резюме не приложено")
@@ -328,9 +316,7 @@ async def download_resume(
 
 
 @router.get("/{candidate_id}/resume/viewer", response_class=HTMLResponse)
-async def view_resume_html(
-    candidate_id: int, session: SessionDep, _current_user: CurrentUser
-):
+async def view_resume_html(candidate_id: int, session: SessionDep, _current_user: CurrentUser):
     """HTML-рендер DOCX-резюме через mammoth. Для PDF клиент использует
     `/resume` напрямую (blob → iframe)."""
     _, prof = await _load_owned(session, candidate_id, _current_user)
@@ -353,9 +339,7 @@ async def view_resume_html(
 
 
 @router.post("/{candidate_id}/hire", response_model=CandidatePublic)
-async def hire_candidate(
-    candidate_id: int, session: SessionDep, current_user: MutatorUser
-):
+async def hire_candidate(candidate_id: int, session: SessionDep, current_user: MutatorUser):
     """Превращает кандидата в действующего сотрудника.
 
     kind='employee', hired_at=today, role_id/grade_id берутся из expected_*,
@@ -406,9 +390,7 @@ async def update_decision(
     if "feedback_decision" in data:
         prof.feedback_decision = data["feedback_decision"]
     if "rejection_reason_md" in data:
-        prof.rejection_reason_md = (
-            data["rejection_reason_md"] or ""
-        ).strip() or None
+        prof.rejection_reason_md = (data["rejection_reason_md"] or "").strip() or None
     await session.commit()
     await session.refresh(prof)
     return await _to_public(session, emp, prof)

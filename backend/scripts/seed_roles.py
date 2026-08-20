@@ -6,9 +6,11 @@
 
 Запуск:  uv run python -m scripts.seed_roles
 """
+
 import asyncio
 
 from sqlalchemy import select, update
+from sqlalchemy.engine import CursorResult
 
 from app.core.security import hash_password
 from app.db import SessionLocal
@@ -18,12 +20,8 @@ from app.models.user import User
 DEFAULT_PASSWORD = "demo123"
 
 
-async def _ensure_user(
-    session, email: str, full_name: str, role: str
-) -> User:
-    u = (
-        await session.execute(select(User).where(User.email == email))
-    ).scalar_one_or_none()
+async def _ensure_user(session, email: str, full_name: str, role: str) -> User:
+    u = (await session.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if u is None:
         u = User(
             email=email,
@@ -70,11 +68,10 @@ async def main() -> None:
             .where(Project.code.in_(pm_project_codes))
             .values(product_manager_id=pm.id)
         )
+        if not isinstance(upd, CursorResult):
+            raise RuntimeError("Ожидался CursorResult при назначении менеджера")
         await session.commit()
-        print(
-            f"  → PM закреплён на {upd.rowcount} проектах: "
-            f"{', '.join(pm_project_codes)}"
-        )
+        print(f"  → PM закреплён на {upd.rowcount} проектах: {', '.join(pm_project_codes)}")
 
 
 if __name__ == "__main__":

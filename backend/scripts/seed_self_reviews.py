@@ -9,6 +9,7 @@
 Запуск:
     uv run python -m scripts.seed_self_reviews
 """
+
 import asyncio
 import random
 from datetime import UTC, datetime, timedelta
@@ -18,6 +19,7 @@ from app.db import SessionLocal
 from app.models.employee import Employee
 from app.models.self_review import SelfReview
 from app.models.user import User
+
 ADMIN_EMAIL = "admin@example.com"
 
 CLOSED_NOTES_2025 = [

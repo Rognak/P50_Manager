@@ -4,11 +4,13 @@
 Роль/грейд и заметки руководитель проставит вручную в карточке сотрудника
 после импорта — там и удобнее, и нет риска ошибочного маппинга.
 """
+
 from __future__ import annotations
 
 import re
 from datetime import date, timedelta
 from io import BytesIO
+from typing import Literal
 
 from openpyxl import load_workbook
 from sqlalchemy import select
@@ -87,7 +89,7 @@ async def parse_xlsx(
     headers_raw = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
     header_to_key: dict[int, str] = {}
     for idx, h in enumerate(headers_raw):
-        key = COLUMN_ALIASES.get(_normalize_header(h or ""))
+        key = COLUMN_ALIASES.get(_normalize_header(str(h or "")))
         if key:
             header_to_key[idx] = key
     if "full_name" not in header_to_key.values():
@@ -105,9 +107,7 @@ async def parse_xlsx(
     existing_names = {n.strip().lower() for n, _ in existing}
 
     out: list[EmployeeImportRow] = []
-    for row_idx, row_values in enumerate(
-        ws.iter_rows(min_row=2, values_only=True), start=2
-    ):
+    for row_idx, row_values in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
         # Пустые строки пропускаем
         if not row_values or all(v in (None, "") for v in row_values):
             continue
@@ -142,7 +142,7 @@ async def parse_xlsx(
         hired_at = parse_tenure_to_hired_at(data.get("tenure"))
 
         # Дедуп
-        action: str = "create"
+        action: Literal["create", "skip", "error"] = "create"
         if email and email.lower() in existing_emails:
             action = "skip"
             warnings.append("сотрудник с таким email уже существует")

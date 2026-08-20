@@ -9,6 +9,7 @@
   • Извлечённые компетенции (с привязкой к PR-ам)
   • Проекты (текущие + история)
 """
+
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
@@ -33,6 +34,7 @@ from app.models.mpk import (
 )
 from app.models.project import Project, ProjectMember
 from app.models.self_review import SelfReview
+from app.schemas.dev_metrics import DevMetricsSnapshotPublic
 
 
 async def build_digital_profile_context(
@@ -46,23 +48,17 @@ async def build_digital_profile_context(
     role_name = employee.role.name if employee.role else "—"
     grade = employee.grade.code if employee.grade else "—"
     dept = employee.department.name if employee.department else "—"
-    tenure_days = (
-        (datetime.now(UTC).date() - employee.hired_at).days
-        if employee.hired_at
-        else None
-    )
+    tenure_days = (datetime.now(UTC).date() - employee.hired_at).days if employee.hired_at else None
     lines.append("## Сотрудник")
     lines.append(f"ФИО: {employee.full_name}")
     lines.append(f"Должность: {employee.position or '—'}")
     lines.append(f"Роль МПК: {role_name} / грейд {grade}")
     lines.append(f"Отдел: {dept}")
-    if tenure_days is not None:
+    hired_at = employee.hired_at
+    if tenure_days is not None and hired_at is not None:
         years = tenure_days // 365
         months = (tenure_days % 365) // 30
-        lines.append(
-            f"Стаж в команде: {years} лет {months} мес "
-            f"(с {employee.hired_at.isoformat()})"
-        )
+        lines.append(f"Стаж в команде: {years} лет {months} мес (с {hired_at.isoformat()})")
     lines.append("")
     summary["employee"] = {
         "id": employee.id,
@@ -115,9 +111,7 @@ async def build_digital_profile_context(
             lines.append("Гэпы / неоценено:")
             for cname, req, cur, note in gaps[:12]:
                 cur_str = "—" if cur is None else str(cur)
-                lines.append(
-                    f"  • {cname}: требуется L{req}, текущий L{cur_str} ({note})"
-                )
+                lines.append(f"  • {cname}: требуется L{req}, текущий L{cur_str} ({note})")
         lines.append("")
         summary["mpk_gaps_count"] = len(gaps)
         summary["mpk_ok_count"] = ok_count
@@ -150,12 +144,10 @@ async def build_digital_profile_context(
     period_to = date.today()
     period_from = period_to - timedelta(days=90)
 
-    snap = None
+    snap: DevMetricsSnapshotPublic | DevMetricsSnapshot | None = None
     if use_codebuddy:
         try:
-            snap = await codebuddy_service.get_dev_metrics(
-                employee, period_from, period_to
-            )
+            snap = await codebuddy_service.get_dev_metrics(employee, period_from, period_to)
         except CodeBuddyAPIError:
             snap = None  # сеть/auth упал — пропускаем секцию, не валим всю генерацию
     else:
@@ -207,26 +199,21 @@ async def build_digital_profile_context(
             )
         else:
             lines.append(
-                f"Комментариев: дал {snap.comments_given}, "
-                f"получил {snap.comments_received}"
+                f"Комментариев: дал {snap.comments_given}, получил {snap.comments_received}"
             )
         if snap.wip_count or snap.stale_count:
-            lines.append(
-                f"WIP сейчас: {snap.wip_count}, зависших: {snap.stale_count}"
-            )
+            lines.append(f"WIP сейчас: {snap.wip_count}, зависших: {snap.stale_count}")
         # Детали зависших PR — конкретные имена/возраст помогают AI говорить
         # про реальные риски, а не абстрактные «есть зависшие».
         wip_items = getattr(snap, "wip_mrs", None) or []
-        stale_items = [w for w in wip_items if w.is_stale]
+        stale_items = [w for w in wip_items if w.is_stale and w.state == "open"]
         if stale_items:
             threshold = getattr(snap, "stale_threshold_days", None)
             tail = f" (порог {threshold} дн.)" if threshold else ""
             lines.append(f"Зависшие PR-ы{tail}:")
             for w in stale_items[:5]:
                 proj = w.project_name or "—"
-                lines.append(
-                    f"  • !{w.mr_iid} «{w.title}» — {w.age_days} дн., проект {proj}"
-                )
+                lines.append(f"  • !{w.mr_iid} «{w.title}» — {w.age_days} дн., проект {proj}")
         lines.append("")
         summary["dev_metrics"] = {
             "total_mrs": snap.total_mrs,
@@ -244,9 +231,7 @@ async def build_digital_profile_context(
 
     # ---- 5) Извлечённые компетенции (CodeBuddy live или mock) ----
     # Расширенный кортеж: name, frequency, last_seen, frequency_score, top_signals_str, topics_str
-    extracted_rows: list[
-        tuple[str, int, datetime | None, float | None, str, str]
-    ] = []
+    extracted_rows: list[tuple[str, int, datetime | None, float | None, str, str]] = []
 
     if use_codebuddy:
         try:
@@ -256,10 +241,7 @@ async def build_digital_profile_context(
             for it in resp.items[:15]:
                 # Сжимаем топ-сигналы и темы в короткую строку для prompt'а —
                 # модель не любит длинные nested-структуры в свободном тексте.
-                sigs = ", ".join(
-                    f"{s.signal}×{s.occurrences}"
-                    for s in (it.top_signals or [])[:5]
-                )
+                sigs = ", ".join(f"{s.signal}×{s.occurrences}" for s in (it.top_signals or [])[:5])
                 topics = "; ".join(
                     (
                         f"{t.topic}"
@@ -289,21 +271,13 @@ async def build_digital_profile_context(
             .limit(15)
         )
         for ec, comp in ec_q.all():
-            extracted_rows.append(
-                (comp.name, ec.frequency, ec.last_seen_at, None, "", "")
-            )
+            extracted_rows.append((comp.name, ec.frequency, ec.last_seen_at, None, "", ""))
 
     if extracted_rows:
         lines.append("## Компетенции, реально проявленные в PR-ах")
         for name, freq, last_seen, fscore, sigs, topics in extracted_rows:
-            score_part = (
-                f", score {int(fscore)}/100" if fscore is not None else ""
-            )
-            seen_part = (
-                f", последний {last_seen.date().isoformat()}"
-                if last_seen
-                else ""
-            )
+            score_part = f", score {int(fscore)}/100" if fscore is not None else ""
+            seen_part = f", последний {last_seen.date().isoformat()}" if last_seen else ""
             lines.append(f"  • {name}: {freq} PR-ов{score_part}{seen_part}")
             if sigs:
                 lines.append(f"      сигналы: {sigs}")
@@ -335,8 +309,7 @@ async def build_digital_profile_context(
             lines.append("История:")
             for m, p in past_proj[:5]:
                 lines.append(
-                    f"  • {p.name} ({m.role_in_project or '—'}), "
-                    f"{m.joined_at} — {m.left_at}"
+                    f"  • {p.name} ({m.role_in_project or '—'}), {m.joined_at} — {m.left_at}"
                 )
         lines.append("")
         summary["projects_current"] = len(current_proj)
@@ -380,17 +353,12 @@ async def build_digital_profile_context(
             .limit(5)
         )
         for pr, pname in top_pr_q.all():
-            top_prs_rows.append(
-                (pr.title, pr.size_bucket, pr.quality_ratio, pname, [])
-            )
+            top_prs_rows.append((pr.title, pr.size_bucket, pr.quality_ratio, pname, []))
 
     if top_prs_rows:
         lines.append("## Топ PR-ов по quality_ratio (за 90 дней)")
         for title, bucket, qratio, pname, fkeys in top_prs_rows:
-            base = (
-                f"  • [{bucket} · q={int(qratio * 100)}%] "
-                f"{title} ({pname or 'без проекта'})"
-            )
+            base = f"  • [{bucket} · q={int(qratio * 100)}%] {title} ({pname or 'без проекта'})"
             lines.append(base)
             if fkeys:
                 lines.append(f"      фичи: {', '.join(fkeys)}")

@@ -85,9 +85,7 @@ class Role(Base):
     specialization: Mapped[str | None] = mapped_column(String(255), nullable=True)
     direction: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    key_competencies: Mapped[list["Competency"]] = relationship(
-        secondary="role_key_competencies"
-    )
+    key_competencies: Mapped[list["Competency"]] = relationship(secondary="role_key_competencies")
 
 
 class Grade(Base):
@@ -101,7 +99,9 @@ class Grade(Base):
 class RoleProfile(Base):
     __tablename__ = "role_profiles"
     __table_args__ = (
-        CheckConstraint("required_level >= 0 AND required_level <= 5", name="ck_role_profile_level"),
+        CheckConstraint(
+            "required_level >= 0 AND required_level <= 5", name="ck_role_profile_level"
+        ),
     )
 
     role_id: Mapped[int] = mapped_column(
@@ -261,12 +261,8 @@ class AIJob(Base, TimestampMixin):
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    finished_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
@@ -305,7 +301,9 @@ class MeetingArtifact(Base, TimestampMixin):
         # одна запись на комбинацию (встреча, тип артефакта, AI-item).
         # для not-null ai_item_uid; NULL-значения не конфликтуют в PG.
         UniqueConstraint(
-            "meeting_id", "kind", "ai_item_uid",
+            "meeting_id",
+            "kind",
+            "ai_item_uid",
             name="uq_meeting_artifacts_meeting_kind_itemuid",
         ),
     )

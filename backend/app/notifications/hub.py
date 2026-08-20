@@ -8,6 +8,7 @@
 Если redis-pool ещё не инициализирован (тесты, скрипты) — публикация
 ограничивается локальным фанаутом, чтобы не падать.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -51,9 +52,7 @@ class NotificationHub:
             try:
                 q.put_nowait(event)
             except asyncio.QueueFull:
-                logger.warning(
-                    "notification queue full for user %s — dropping", user_id
-                )
+                logger.warning("notification queue full for user %s — dropping", user_id)
 
     async def publish(self, user_id: int, event: dict[str, Any]) -> None:
         """Опубликовать событие. Всегда через Redis, если он доступен —
@@ -62,9 +61,7 @@ class NotificationHub:
             from app.redis_pool import get_pool  # late import — может быть не init
 
             pool = get_pool()
-            payload = json.dumps(
-                {"user_id": user_id, "event": event}, default=str
-            )
+            payload = json.dumps({"user_id": user_id, "event": event}, default=str)
             await pool.publish(REDIS_CHANNEL, payload)
         except Exception:
             # Redis недоступен — фолбэк

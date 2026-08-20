@@ -1,4 +1,4 @@
-.PHONY: up down db-shell backend frontend install migrate revision seed-admin seed-others seed-self-reviews seed-candidates seed-tech-maturity seed-departments seed-coreteam seed-roles seed-assignments seed-vacancies
+.PHONY: up down db-shell backend frontend install migrate revision seed-admin seed-others seed-self-reviews seed-candidates seed-tech-maturity seed-technology-radar seed-departments seed-coreteam seed-roles seed-assignments seed-vacancies
 
 up:
 	docker compose up -d db adminer redis
@@ -52,6 +52,9 @@ seed-candidates:
 
 seed-tech-maturity:
 	cd backend && uv run python -m scripts.seed_tech_maturity
+
+seed-technology-radar:
+	cd backend && uv run python -m scripts.seed_technology_radar
 
 seed-departments:
 	cd backend && uv run python -m scripts.seed_departments

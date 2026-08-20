@@ -5,12 +5,14 @@ import {
   CronJobMeta,
   CronRunPublic,
   ExternalLink,
+  GitLabConfigResponse,
   IntegrationsResponse,
   LLMConfigResponse,
   LLMTestResponse,
   NavVisibilityResponse,
   NotificationAdminPublic,
   NotificationKindsResponse,
+  TechnologyCatalogEntry,
   UserRole,
   api,
 } from '../api/client'
@@ -22,6 +24,7 @@ type Tab =
   | 'broadcast'
   | 'cron'
   | 'external_links'
+  | 'technology_catalog'
   | 'integrations'
   | 'llm'
 
@@ -32,6 +35,7 @@ const TAB_LABELS: Record<Tab, string> = {
   broadcast: 'Рассылка',
   cron: 'Cron',
   external_links: 'Смежные системы',
+  technology_catalog: 'Справочник технологий',
   integrations: 'Интеграции',
   llm: 'LLM',
 }
@@ -46,6 +50,7 @@ const NAV_KEY_LABEL: Record<string, string> = {
   dashboard: 'Dashboard',
   employees: 'Сотрудники',
   projects: 'Проекты',
+  technology_radar: 'Радар технологий',
   departments: 'Тех. зрелость практик',
   assignments: 'Поручения',
   rotations: 'Ротации',
@@ -105,10 +110,60 @@ export function AdminPanel() {
       {tab === 'broadcast' && <BroadcastTab />}
       {tab === 'cron' && <CronTab />}
       {tab === 'external_links' && <ExternalLinksTab />}
+      {tab === 'technology_catalog' && <TechnologyCatalogTab />}
       {tab === 'integrations' && <IntegrationsTab />}
       {tab === 'llm' && <LlmTab />}
     </div>
   )
+}
+
+// ---------- Tab: Technology catalog ----------
+
+function TechnologyCatalogTab() {
+  const [items, setItems] = useState<TechnologyCatalogEntry[] | null>(null)
+  const [query, setQuery] = useState('')
+  const [type, setType] = useState('')
+  const [ecosystem, setEcosystem] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.admin.technologyCatalog().then(setItems).catch((e) => setError((e as Error).message))
+  }, [])
+
+  if (error) return <div className="text-sm text-rose-400">{error}</div>
+  if (!items) return <div className="text-slate-500">Загрузка справочника…</div>
+
+  const types = [...new Set(items.map((item) => item.type))].sort()
+  const ecosystems = [...new Set(items.map((item) => item.ecosystem))].sort()
+  const needle = query.trim().toLowerCase()
+  const filtered = items.filter((item) => {
+    const haystack = [item.technology_id, item.name, item.aliases, item.type, item.ecosystem]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+    return (!needle || haystack.includes(needle))
+      && (!type || item.type === type)
+      && (!ecosystem || item.ecosystem === ecosystem)
+  })
+
+  return <div className="space-y-4">
+    <div>
+      <p className="text-sm text-slate-400">Справочник технологий и сигналов их автоматического распознавания в репозиториях. Данные загружены из CSV и доступны только администраторам.</p>
+      <div className="mt-1 text-xs text-slate-500">Показано {filtered.length} из {items.length}</div>
+    </div>
+    <div className="grid gap-2 md:grid-cols-3">
+      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Название, ID или алиас" className="rounded-lg bg-bg-elevated px-3 py-2 text-sm ring-1 ring-white/5 outline-none focus:ring-accent" />
+      <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-lg bg-bg-elevated px-3 py-2 text-sm ring-1 ring-white/5"><option value="">Все типы</option>{types.map((value) => <option key={value} value={value}>{value}</option>)}</select>
+      <select value={ecosystem} onChange={(e) => setEcosystem(e.target.value)} className="rounded-lg bg-bg-elevated px-3 py-2 text-sm ring-1 ring-white/5"><option value="">Все экосистемы</option>{ecosystems.map((value) => <option key={value} value={value}>{value}</option>)}</select>
+    </div>
+    <div className="overflow-x-auto rounded-2xl bg-bg-elevated ring-1 ring-white/5">
+      <table className="w-full min-w-[1050px] text-left text-sm">
+        <thead className="bg-bg-panel text-xs text-slate-400"><tr><th className="px-4 py-3">Технология</th><th className="px-4 py-3">Тип</th><th className="px-4 py-3">Экосистема</th><th className="px-4 py-3">Распознаваемость</th><th className="px-4 py-3">Алиасы</th><th className="px-4 py-3">Сигналы</th></tr></thead>
+        <tbody>{filtered.map((item) => <tr key={item.technology_id} className="border-t border-white/5 align-top"><td className="px-4 py-3"><div className="font-medium">{item.name}</div><code className="text-xs text-slate-500">{item.technology_id}</code></td><td className="px-4 py-3 text-slate-300">{item.type}</td><td className="px-4 py-3 text-slate-300">{item.ecosystem}</td><td className="px-4 py-3"><span className={item.detectability === 'high' ? 'text-emerald-400' : item.detectability === 'medium' ? 'text-amber-400' : 'text-slate-400'}>{item.detectability}</span></td><td className="max-w-xs px-4 py-3 text-xs text-slate-400">{item.aliases?.split('|').join(', ') || '—'}</td><td className="max-w-sm px-4 py-3"><details><summary className="cursor-pointer text-xs text-accent">Показать</summary><div className="mt-2 space-y-2 text-xs text-slate-400"><div><span className="text-slate-500">Манифесты:</span> {item.manifest_signals?.split('|').join(', ') || '—'}</div><div><span className="text-slate-500">Код:</span> {item.code_signals?.split('|').join(', ') || '—'}</div>{item.notes && <div><span className="text-slate-500">Примечание:</span> {item.notes}</div>}</div></details></td></tr>)}</tbody>
+      </table>
+      {filtered.length === 0 && <div className="p-6 text-center text-sm text-slate-500">Ничего не найдено.</div>}
+    </div>
+  </div>
 }
 
 // ---------- Tab: External links (DSTracker / CodeBuddy / ...) ----------
@@ -824,6 +879,10 @@ function CronTab() {
 
 function IntegrationsTab() {
   const [data, setData] = useState<IntegrationsResponse | null>(null)
+  const [gitlab, setGitlab] = useState<GitLabConfigResponse | null>(null)
+  const [gitlabToken, setGitlabToken] = useState('')
+  const [gitlabSaving, setGitlabSaving] = useState(false)
+  const [gitlabSaved, setGitlabSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [health, setHealth] = useState<CodeBuddyHealthResponse | null>(null)
@@ -837,14 +896,16 @@ function IntegrationsTab() {
   } | null>(null)
 
   useEffect(() => {
-    api.admin.integrations
-      .get()
-      .then(setData)
+    Promise.all([api.admin.integrations.get(), api.admin.gitlab.get()])
+      .then(([integrations, gitlabConfig]) => {
+        setData(integrations)
+        setGitlab(gitlabConfig)
+      })
       .catch((e) => setError((e as Error).message))
   }, [])
 
   if (error) return <div className="text-sm text-rose-400">{error}</div>
-  if (!data) return <div className="text-slate-500">Загрузка…</div>
+  if (!data || !gitlab) return <div className="text-slate-500">Загрузка…</div>
 
   const toggleCodebuddy = async () => {
     setSaving(true)
@@ -871,6 +932,25 @@ function IntegrationsTab() {
       setError((e as Error).message)
     } finally {
       setHealthBusy(false)
+    }
+  }
+
+  const saveGitlab = async (autoSyncEnabled = gitlab.auto_sync_enabled) => {
+    setGitlabSaving(true)
+    setGitlabSaved(false)
+    setError(null)
+    try {
+      const next = await api.admin.gitlab.put({
+        api_token: gitlabToken.trim() || null,
+        auto_sync_enabled: autoSyncEnabled,
+      })
+      setGitlab(next)
+      setGitlabToken('')
+      setGitlabSaved(true)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setGitlabSaving(false)
     }
   }
 
@@ -1025,6 +1105,68 @@ function IntegrationsTab() {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="space-y-4 rounded-2xl bg-bg-elevated p-5 ring-1 ring-white/5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-base font-medium">GitLab API — сверка статусов PR</div>
+            <p className="mt-1 text-sm text-slate-400">
+              Прямая проверка Unknown и зависших открытых PR в корпоративном GitLab.
+              Ручная синхронизация доступна независимо от переключателя автоматики.
+            </p>
+            <div className="mt-2 text-xs text-slate-500">
+              URL: {gitlab.base_url || 'не задан в GITLAB_BASE_URL'}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void saveGitlab(!gitlab.auto_sync_enabled)}
+            disabled={gitlabSaving}
+            className={
+              'shrink-0 rounded-lg px-4 py-2 text-sm font-medium ring-1 disabled:opacity-50 ' +
+              (gitlab.auto_sync_enabled
+                ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/25'
+                : 'bg-bg-panel text-slate-300 ring-white/10 hover:text-accent')
+            }
+          >
+            {gitlabSaving ? '…' : gitlab.auto_sync_enabled ? 'Автосинхронизация включена' : 'Автосинхронизация выключена'}
+          </button>
+        </div>
+
+        <div className="border-t border-white/5 pt-4">
+          <label className="mb-1.5 block text-sm font-medium text-slate-300" htmlFor="gitlab-api-token">
+            GitLab API token
+          </label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              id="gitlab-api-token"
+              type="password"
+              autoComplete="new-password"
+              value={gitlabToken}
+              onChange={(event) => { setGitlabToken(event.target.value); setGitlabSaved(false) }}
+              placeholder={gitlab.api_token_set ? 'Токен задан — введите новый для замены' : 'Введите токен с доступом к GitLab API'}
+              className="min-w-0 flex-1 rounded-lg bg-bg-panel px-3 py-2 text-sm text-slate-200 ring-1 ring-white/10 placeholder:text-slate-600 focus:outline-none focus:ring-primary"
+            />
+            <button
+              type="button"
+              onClick={() => void saveGitlab()}
+              disabled={gitlabSaving || !gitlabToken.trim()}
+              className="rounded-lg bg-primary-soft px-4 py-2 text-sm text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {gitlabSaving ? 'Сохраняем…' : gitlab.api_token_set ? 'Заменить токен' : 'Сохранить токен'}
+            </button>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+            <span className={gitlab.api_token_set ? 'text-emerald-400' : 'text-amber-400'}>
+              {gitlab.api_token_set
+                ? `Токен настроен (${gitlab.api_token_source === 'admin' ? 'админ-панель' : '.env'})`
+                : 'Токен не настроен'}
+            </span>
+            {gitlabSaved && <span className="text-emerald-400">Настройки сохранены</span>}
+            <span className="text-slate-600">Сохранённое значение токена никогда не отображается.</span>
+          </div>
+        </div>
       </div>
     </div>
   )

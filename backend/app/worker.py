@@ -1,7 +1,10 @@
 """ARQ worker. Запуск:  uv run arq app.worker.WorkerSettings"""
+
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 from arq import cron
+from arq.typing import WorkerCoroutine
 from sqlalchemy import or_, update
 
 from app.ai.cron import (
@@ -30,6 +33,7 @@ from app.codebuddy.tasks import run_codebuddy_sync_projects
 from app.db import SessionLocal
 from app.models.mpk import AIJob
 from app.redis_pool import close_redis, init_redis, redis_settings
+from app.technology_alerts import technology_radar_alerts
 
 
 async def _on_startup(_ctx) -> None:
@@ -51,8 +55,7 @@ async def _on_startup(_ctx) -> None:
             .where(
                 or_(
                     AIJob.status == "running",
-                    (AIJob.status == "queued")
-                    & (AIJob.created_at < stuck_cutoff),
+                    (AIJob.status == "queued") & (AIJob.created_at < stuck_cutoff),
                 )
             )
             .values(
@@ -113,6 +116,12 @@ class WorkerSettings:
             codebuddy_sync_projects,
             hour=2,
             minute=30,
+            run_at_startup=False,
+        ),
+        cron(
+            cast(WorkerCoroutine, technology_radar_alerts),
+            hour=8,
+            minute=0,
             run_at_startup=False,
         ),
     ]

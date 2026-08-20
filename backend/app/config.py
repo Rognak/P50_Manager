@@ -32,5 +32,13 @@ class Settings(BaseSettings):
     codebuddy_verify_ssl: bool = False
     codebuddy_request_timeout: float = 30.0
 
+    # ---- Direct GitLab API (ручная сверка Unknown PR) ----
+    # Хост задаётся явно: помимо конфигурации это ограничивает запросы и
+    # не позволяет превратить endpoint сверки статуса в произвольный proxy.
+    gitlab_base_url: str = ""
+    gitlab_api_token: str = ""
+    gitlab_verify_ssl: bool = False
+    gitlab_request_timeout: float = 15.0
+
 
 settings = Settings()

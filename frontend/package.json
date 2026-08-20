@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "icons:generate": "node scripts/generate-technology-icons.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
@@ -16,7 +17,8 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.1.1",
     "rehype-highlight": "^7.0.2",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "simple-icons": "^16.28.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.1",

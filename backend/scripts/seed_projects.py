@@ -4,6 +4,7 @@
 Запуск:
     uv run python -m scripts.seed_projects
 """
+
 import asyncio
 import sys
 from datetime import date
@@ -57,7 +58,7 @@ PROJECTS: list[dict] = [
         "started_at": date(2024, 1, 15),
         "finished_at": None,
         "stack": [
-            ("Разработка Front (Angular, React, QT)",4),
+            ("Разработка Front (Angular, React, QT)", 4),
             ("Программирование", 3),
             ("Базы данных", 2),
             ("Системы контроля версий", 3),
@@ -132,7 +133,7 @@ PROJECTS: list[dict] = [
         "finished_at": date(2025, 12, 31),
         "stack": [
             ("Программирование", 3),
-            ("Разработка Front (Angular, React, QT)",3),
+            ("Разработка Front (Angular, React, QT)", 3),
             ("Базы данных", 2),
         ],
         "members": [
@@ -160,9 +161,7 @@ async def main() -> None:
 
         # карта email → employee
         emp_q = await session.execute(select(Employee))
-        emp_by_email: dict[str, Employee] = {
-            e.email: e for e in emp_q.scalars() if e.email
-        }
+        emp_by_email: dict[str, Employee] = {e.email: e for e in emp_q.scalars() if e.email}
 
         # карта name → competency
         comp_q = await session.execute(select(Competency))
@@ -171,17 +170,11 @@ async def main() -> None:
         # Удаляем существующие проекты админа. Сначала чистим вакансии,
         # привязанные к этим проектам, иначе ON DELETE SET NULL роняет CHECK
         # (project_id IS NOT NULL OR department_id IS NOT NULL).
-        proj_ids_q = await session.execute(
-            select(Project.id).where(Project.created_by == admin.id)
-        )
+        proj_ids_q = await session.execute(select(Project.id).where(Project.created_by == admin.id))
         proj_ids = [pid for (pid,) in proj_ids_q.all()]
         if proj_ids:
-            await session.execute(
-                delete(Vacancy).where(Vacancy.project_id.in_(proj_ids))
-            )
-        del_q = await session.execute(
-            select(Project).where(Project.created_by == admin.id)
-        )
+            await session.execute(delete(Vacancy).where(Vacancy.project_id.in_(proj_ids)))
+        del_q = await session.execute(select(Project).where(Project.created_by == admin.id))
         for p in del_q.scalars():
             await session.delete(p)
         await session.flush()
@@ -220,9 +213,7 @@ async def main() -> None:
 
             # Если проект завершён, проставляем left_at = finished_at для тех,
             # у кого он не задан явно. Так сотрудник честно попадёт в «историю».
-            project_left_default = (
-                spec["finished_at"] if spec["status"] == "completed" else None
-            )
+            project_left_default = spec["finished_at"] if spec["status"] == "completed" else None
             for entry in spec["members"]:
                 if len(entry) == 4:
                     email, role_in_project, joined_at, left_at = entry

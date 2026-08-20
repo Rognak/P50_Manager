@@ -1,4 +1,5 @@
 """Вакансии: CRUD + генерация шаблона требований по role+grade+project."""
+
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -54,9 +55,7 @@ async def _to_public(session, v: Vacancy) -> VacancyPublic:
     creator = await session.get(User, v.created_by_id)
 
     cnt_q = await session.execute(
-        select(func.count(CandidateProfile.id)).where(
-            CandidateProfile.vacancy_id == v.id
-        )
+        select(func.count(CandidateProfile.id)).where(CandidateProfile.vacancy_id == v.id)
     )
     cnt = int(cnt_q.scalar() or 0)
 
@@ -165,9 +164,7 @@ async def _build_requirements_template(
                 lines.append("")
                 for lv in levels:
                     parts = [
-                        s.strip()
-                        for s in (lv.theory or "", lv.practice or "")
-                        if s and s.strip()
+                        s.strip() for s in (lv.theory or "", lv.practice or "") if s and s.strip()
                     ]
                     desc = " ".join(parts)
                     lines.append(f"- **L{lv.code} — {lv.name}.** {desc}")
@@ -247,25 +244,19 @@ async def list_vacancies(
     rname: dict[int, str] = {}
     gcode: dict[int, str] = {}
     if proj_ids:
-        q = await session.execute(
-            select(Project.id, Project.name).where(Project.id.in_(proj_ids))
-        )
-        pname = dict(q.all())
+        q = await session.execute(select(Project.id, Project.name).where(Project.id.in_(proj_ids)))
+        pname = {item_id: name for item_id, name in q.all()}
     if dept_ids:
         q = await session.execute(
             select(Department.id, Department.name).where(Department.id.in_(dept_ids))
         )
-        dname = dict(q.all())
+        dname = {item_id: name for item_id, name in q.all()}
     if role_ids:
-        q = await session.execute(
-            select(Role.id, Role.name).where(Role.id.in_(role_ids))
-        )
-        rname = dict(q.all())
+        q = await session.execute(select(Role.id, Role.name).where(Role.id.in_(role_ids)))
+        rname = {item_id: name for item_id, name in q.all()}
     if grade_ids:
-        q = await session.execute(
-            select(Grade.id, Grade.code).where(Grade.id.in_(grade_ids))
-        )
-        gcode = dict(q.all())
+        q = await session.execute(select(Grade.id, Grade.code).where(Grade.id.in_(grade_ids)))
+        gcode = {item_id: code for item_id, code in q.all()}
 
     # candidates count per vacancy
     cnt_q = await session.execute(
@@ -273,7 +264,9 @@ async def list_vacancies(
         .where(CandidateProfile.vacancy_id.in_([v.id for v in rows]))
         .group_by(CandidateProfile.vacancy_id)
     )
-    cnt_map = dict(cnt_q.all())
+    cnt_map: dict[int, int] = {
+        vacancy_id: count for vacancy_id, count in cnt_q.all() if vacancy_id is not None
+    }
 
     return [
         VacancyListItem(
@@ -294,9 +287,7 @@ async def list_vacancies(
 
 
 @router.post("", response_model=VacancyPublic, status_code=status.HTTP_201_CREATED)
-async def create_vacancy(
-    payload: VacancyCreate, session: SessionDep, current_user: MutatorUser
-):
+async def create_vacancy(payload: VacancyCreate, session: SessionDep, current_user: MutatorUser):
     v = Vacancy(
         title=payload.title.strip(),
         project_id=payload.project_id,
@@ -314,9 +305,7 @@ async def create_vacancy(
 
 
 @router.get("/{vacancy_id}", response_model=VacancyPublic)
-async def get_vacancy(
-    vacancy_id: int, session: SessionDep, _current_user: CurrentUser
-):
+async def get_vacancy(vacancy_id: int, session: SessionDep, _current_user: CurrentUser):
     v = await session.get(Vacancy, vacancy_id)
     if v is None:
         raise HTTPException(status_code=404, detail="Вакансия не найдена")
@@ -357,9 +346,7 @@ async def update_vacancy(
 
 
 @router.delete("/{vacancy_id}", status_code=204)
-async def delete_vacancy(
-    vacancy_id: int, session: SessionDep, _current_user: MutatorUser
-):
+async def delete_vacancy(vacancy_id: int, session: SessionDep, _current_user: MutatorUser):
     v = await session.get(Vacancy, vacancy_id)
     if v is None:
         raise HTTPException(status_code=404, detail="Вакансия не найдена")

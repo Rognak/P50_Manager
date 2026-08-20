@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from sqlalchemy import (
     CheckConstraint,
@@ -29,8 +30,7 @@ class Vacancy(Base, TimestampMixin):
     __table_args__ = (
         # На этапе 5 заменим на product_id OR department_id.
         CheckConstraint(
-            "project_id IS NOT NULL OR product_id IS NOT NULL "
-            "OR department_id IS NOT NULL",
+            "project_id IS NOT NULL OR product_id IS NOT NULL OR department_id IS NOT NULL",
             name="ck_vacancies_target_required",
         ),
     )
@@ -67,13 +67,11 @@ class Vacancy(Base, TimestampMixin):
     requirements_md: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # status: open | closed
-    status: Mapped[str] = mapped_column(
+    status: Mapped[Literal["open", "closed"]] = mapped_column(
         String(20), nullable=False, default="open", server_default="open", index=True
     )
 
     created_by_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    closed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

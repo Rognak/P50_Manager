@@ -14,6 +14,7 @@ signals на каждую компетенцию:
 Для `feature_category` и `language_group` нужно разрешать в set реальных
 `feature_keys` через `/feature-catalog`. Этот модуль делает это.
 """
+
 from __future__ import annotations
 
 

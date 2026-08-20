@@ -9,6 +9,7 @@
 
 Идемпотентны: повторный запуск не плодит дубликатов проектов/мемберов.
 """
+
 from __future__ import annotations
 
 import logging
@@ -56,17 +57,15 @@ async def run_codebuddy_sync_projects(
 
     try:
         if all_time:
-            prs = await codebuddy_service.iterate_all_pull_requests(
-                emp, period_from, period_to
-            )
+            prs = await codebuddy_service.iterate_all_pull_requests(emp, period_from, period_to)
         else:
-            prs = await codebuddy_service.get_pull_requests(
-                emp, period_from, period_to, limit=100
-            )
+            prs = await codebuddy_service.get_pull_requests(emp, period_from, period_to, limit=100)
     except CodeBuddyAPIError as e:
         logger.warning(
             "run_codebuddy_sync_projects: emp #%s (%s) failed: %s",
-            employee_id, full_name, e,
+            employee_id,
+            full_name,
+            e,
         )
         return {"error": str(e), "status_code": e.status_code}
 
@@ -78,11 +77,7 @@ async def run_codebuddy_sync_projects(
             "members_added": 0,
         }
 
-    seen = [
-        (p.project_id, p.project_name, p.created_at_ext, p.url)
-        for p in prs
-        if p.project_id
-    ]
+    seen = [(p.project_id, p.project_name, p.created_at_ext, p.url) for p in prs if p.project_id]
 
     async with SessionLocal() as session:
         # Re-fetch внутри сессии, так как объект из предыдущей сессии detached.
@@ -94,8 +89,12 @@ async def run_codebuddy_sync_projects(
     logger.info(
         "codebuddy_sync_projects emp #%s (%s, all_time=%s): "
         "prs=%d, created=%d, members=%d, product_members=%d",
-        employee_id, full_name, all_time, len(prs),
-        res["created_projects"], res["added_members"],
+        employee_id,
+        full_name,
+        all_time,
+        len(prs),
+        res["created_projects"],
+        res["added_members"],
         res["added_product_members"],
     )
     return {

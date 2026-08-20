@@ -43,13 +43,9 @@ class Notification(Base, TimestampMixin):
     link: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Доп. структурированные данные (assignment_id, rotation_id, …).
-    payload: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="{}"
-    )
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
 
     is_read: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false", index=True
     )
-    read_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

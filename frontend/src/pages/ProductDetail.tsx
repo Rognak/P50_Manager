@@ -18,6 +18,7 @@ import {
 } from '../api/client'
 import { CodeBuddyErrorBanner } from '../components/CodeBuddyErrorBanner'
 import { PerformancePanel } from '../components/product/PerformancePanel'
+import { ProductTechnologiesPanel } from '../components/product/ProductTechnologiesPanel'
 import { StackEditor } from '../components/project/StackEditor'
 import { TechMaturityPanel } from '../components/project/TechMaturityPanel'
 import { useReadOnly } from '../lib/auth-context'
@@ -26,6 +27,12 @@ const STATUS_LABEL: Record<ProductStatus, string> = {
   active: 'Активен',
   on_hold: 'На паузе',
   completed: 'Завершён',
+}
+
+const STATUS_STYLE: Record<ProductStatus, string> = {
+  active: 'bg-emerald-500/15 text-emerald-400',
+  on_hold: 'bg-amber-500/15 text-amber-400',
+  completed: 'bg-slate-500/15 text-slate-400',
 }
 
 function fmtDate(iso: string | null): string {
@@ -314,7 +321,7 @@ function Tile({
   return (
     <div className="rounded-2xl bg-bg-elevated p-4 ring-1 ring-white/5">
       <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-accent">{value}</div>
+      <div className="mt-1 text-2xl font-semibold text-slate-200">{value}</div>
       {hint && <div className="mt-1 text-[11px] text-slate-500">{hint}</div>}
     </div>
   )
@@ -699,7 +706,7 @@ export function ProductDetail() {
               </div>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-400">
-              <span className="rounded bg-bg-panel px-2 py-0.5 text-xs">
+              <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[product.status]}`}>
                 {STATUS_LABEL[product.status]}
               </span>
               <span>·</span>
@@ -788,6 +795,8 @@ export function ProductDetail() {
           value={product.competencies.length}
         />
       </section>
+
+      <ProductTechnologiesPanel productId={productId} productStatus={product.status} canManage={!readOnly} />
 
       {/* performance (объединено с обзором) */}
       <section>

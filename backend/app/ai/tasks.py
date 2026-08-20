@@ -1,4 +1,5 @@
 """ARQ-задачи: оборачивают AI-вызовы, обновляют ai_jobs, пишут результат в целевые сущности."""
+
 import asyncio
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -166,9 +167,7 @@ async def _load_employee(session, eid: int) -> Employee:
 # Тут чистые функции на сессии.
 
 
-async def _build_questions_context(
-    session, employee: Employee, params: AIGenParams
-):
+async def _build_questions_context(session, employee: Employee, params: AIGenParams):
     last_q = await session.execute(
         select(Assessment)
         .where(Assessment.employee_id == employee.id)
@@ -220,9 +219,7 @@ async def _build_questions_context(
     key_ids: set[int] = set()
     if params.key_only:
         if not employee.role_id:
-            raise RuntimeError(
-                "Опция «только ключевые»: у сотрудника не назначена роль."
-            )
+            raise RuntimeError("Опция «только ключевые»: у сотрудника не назначена роль.")
         kq = await session.execute(
             select(role_key_competencies.c.competency_id).where(
                 role_key_competencies.c.role_id == employee.role_id
@@ -240,9 +237,7 @@ async def _build_questions_context(
         if params.key_only:
             wanted &= key_ids
             if not wanted:
-                raise RuntimeError(
-                    "Выбранные компетенции не входят в ключевые для роли."
-                )
+                raise RuntimeError("Выбранные компетенции не входят в ключевые для роли.")
         focus = [c for c in all_comps if c.id in wanted]
     elif params.key_only:
         focus = [c for c in all_comps if c.id in key_ids]
@@ -325,9 +320,7 @@ async def _build_recommendation_context_full(session, employee: Employee):
             artifacts_by_meeting.setdefault(a.meeting_id, []).append(a)
 
     gap_comp_ids = [
-        cid
-        for cid, req in required_by_comp.items()
-        if req - current_by_comp.get(cid, 0) > 0
+        cid for cid, req in required_by_comp.items() if req - current_by_comp.get(cid, 0) > 0
     ]
     learning_by_comp: dict[int, list[LearningResource]] = {}
     if gap_comp_ids:
@@ -389,8 +382,7 @@ async def _build_recommendation_context_full(session, employee: Employee):
             for a in artifacts_by_meeting.get(m.id, [])[:20]:
                 comp_name = by_id[a.competency_id].name if a.competency_id in by_id else ""
                 lines.append(
-                    f"    [{a.kind}{' · ' + comp_name if comp_name else ''}]: "
-                    f"{a.content[:400]}"
+                    f"    [{a.kind}{' · ' + comp_name if comp_name else ''}]: {a.content[:400]}"
                 )
 
     if learning_by_comp:
@@ -657,9 +649,7 @@ async def _build_rotation_context(
     candidates = await compute_candidates(session, from_project_id)
     cand = next((c for c in candidates if c.employee_id == employee_id), None)
 
-    targets = await suggest_target_projects(
-        session, employee_id, from_project_id, limit=5
-    )
+    targets = await suggest_target_projects(session, employee_id, from_project_id, limit=5)
     target_project_ids = [t[0] for t in targets]
 
     role_name = emp.role.name if emp.role else "—"
@@ -687,7 +677,9 @@ async def _build_rotation_context(
             for cid, cname in cand.bus_factor_competencies:
                 lines.append(f"    — {cname}")
     else:
-        lines.append("Сотрудник не в списке кандидатов на ротацию (не достиг порога или заморожен).")
+        lines.append(
+            "Сотрудник не в списке кандидатов на ротацию (не достиг порога или заморожен)."
+        )
 
     if target_project_ids:
         lines += ["", "ПРЕДЛОЖЕННЫЕ ЦЕЛЕВЫЕ ПРОЕКТЫ (по пересечению ★-компетенций):"]
@@ -841,9 +833,7 @@ async def _run_self_review_ai(
                 # compare: (current, previous)
                 cur, prev = ctx_result
                 if prev is None:
-                    raise RuntimeError(
-                        "Нет Self-Review за прошлый год — сравнивать не с чем"
-                    )
+                    raise RuntimeError("Нет Self-Review за прошлый год — сравнивать не с чем")
                 md = await generate(client, cur, prev)
             else:
                 md = await generate(client, ctx_result)
@@ -918,9 +908,7 @@ async def run_candidate_screening(ctx, job_id: int) -> dict:
         try:
             client = await get_client()
             if client is None:
-                raise RuntimeError(
-                    "AI не настроен. Задайте AI_API_KEY в backend/.env"
-                )
+                raise RuntimeError("AI не настроен. Задайте AI_API_KEY в backend/.env")
             emp = await _load_employee(session, job.employee_id)
             prof = await _load_candidate_profile(session, emp.id)
             ctx_text = await build_screening_context(session, emp, prof)
@@ -990,9 +978,7 @@ def _digital_profile_md_fallback(data: dict) -> str:
     if acts := data.get("actions") or []:
         lines.append("## Рекомендуемые действия")
         for a in acts:
-            prio = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(
-                a.get("priority", "medium"), "•"
-            )
+            prio = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(a.get("priority", "medium"), "•")
             lines.append(f"- {prio} **{a.get('title', '')}** — {a.get('detail', '')}")
         lines.append("")
     return "\n".join(lines).strip() or "_(пусто)_"
@@ -1009,9 +995,7 @@ async def run_digital_profile(ctx, job_id: int) -> dict:  # noqa: ARG001
         try:
             client = await get_client()
             if client is None:
-                raise RuntimeError(
-                    "AI не настроен. Задайте AI_API_KEY в backend/.env"
-                )
+                raise RuntimeError("AI не настроен. Задайте AI_API_KEY в backend/.env")
             emp_q = await session.execute(
                 select(Employee)
                 .options(
@@ -1032,9 +1016,7 @@ async def run_digital_profile(ctx, job_id: int) -> dict:  # noqa: ARG001
 
             # Upsert
             existing_q = await session.execute(
-                select(DigitalProfile).where(
-                    DigitalProfile.employee_id == emp.id
-                )
+                select(DigitalProfile).where(DigitalProfile.employee_id == emp.id)
             )
             profile = existing_q.scalar_one_or_none()
             if profile is None:
@@ -1086,18 +1068,16 @@ async def run_product_performance_review(ctx, review_id: int) -> dict:  # noqa: 
         async with SessionLocal() as session:
             client = await get_client()
             if client is None:
-                raise RuntimeError(
-                    "AI не настроен. Задайте AI_API_KEY в backend/.env"
-                )
+                raise RuntimeError("AI не настроен. Задайте AI_API_KEY в backend/.env")
             rv = await session.get(ProductPerformanceReview, review_id)
+            if rv is None:
+                raise RuntimeError("Performance review не найден")
             product = await session.get(Product, rv.product_id)
             if product is None:
                 raise RuntimeError("Продукт не найден")
             access_user = await session.get(User, rv.created_by)
 
-            perf = await build_product_performance(
-                session, rv.product_id, access_user, 90
-            )
+            perf = await build_product_performance(session, rv.product_id, access_user, 90)
             ctx_text = build_review_context(product.name, perf)
 
             # Жёсткий таймаут на LLM-вызов; structured JSON-output.

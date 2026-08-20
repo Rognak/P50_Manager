@@ -6,6 +6,7 @@
 
 Запуск:  uv run python -m scripts.seed_vacancies
 """
+
 import asyncio
 import sys
 
@@ -193,22 +194,24 @@ async def main() -> None:
             sys.exit(1)
 
         # отвязываем кандидатов от старых вакансий и удаляем старые
-        await session.execute(
-            update(CandidateProfile).values(vacancy_id=None)
-        )
+        await session.execute(update(CandidateProfile).values(vacancy_id=None))
         await session.execute(delete(Vacancy))
         await session.commit()
 
         created: list[Vacancy] = []
         for (
-            project_code, dept_substr, role_name, grade_code, title, req_md, status
+            project_code,
+            dept_substr,
+            role_name,
+            grade_code,
+            title,
+            req_md,
+            status,
         ) in VACANCIES_SPEC:
             project_id = None
             department_id = None
             if project_code is not None:
-                pq = await session.execute(
-                    select(Project).where(Project.code == project_code)
-                )
+                pq = await session.execute(select(Project).where(Project.code == project_code))
                 proj = pq.scalar_one_or_none()
                 if proj is None:
                     print(f"!! проект {project_code} не найден — пропускаю '{title}'")
@@ -220,9 +223,7 @@ async def main() -> None:
                 )
                 dept = dq.scalar_one_or_none()
                 if dept is None:
-                    print(
-                        f"!! отдел '{dept_substr}' не найден — пропускаю '{title}'"
-                    )
+                    print(f"!! отдел '{dept_substr}' не найден — пропускаю '{title}'")
                     continue
                 department_id = dept.id
 
@@ -243,9 +244,7 @@ async def main() -> None:
             await session.flush()
             created.append(v)
             target = project_code or f"dept {dept_substr}" or "—"
-            print(
-                f"  + {title}  (role={role_name}/{grade_code}, target={target})"
-            )
+            print(f"  + {title}  (role={role_name}/{grade_code}, target={target})")
 
         # Привязываем существующих демо-кандидатов к первой подходящей открытой вакансии
         # Тут эвристика для seed-данных: candidate с position 'Backend Python' → Python-vacancy и т.п.

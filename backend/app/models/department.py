@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from sqlalchemy import (
     DateTime,
@@ -41,7 +42,7 @@ class DeptMaturitySurvey(Base, TimestampMixin):
         ForeignKey("departments.id", ondelete="CASCADE"), nullable=False, index=True
     )
     period: Mapped[str] = mapped_column(String(20), nullable=False)
-    status: Mapped[str] = mapped_column(
+    status: Mapped[Literal["draft", "done"]] = mapped_column(
         String(20), nullable=False, default="draft", server_default="draft"
     )
     template_version: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -49,9 +50,7 @@ class DeptMaturitySurvey(Base, TimestampMixin):
     # answers: { "{directionCode}-{level}": float (0..1) } — 35 ячеек
     answers: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )

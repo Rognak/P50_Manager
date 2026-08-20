@@ -3,16 +3,13 @@ import { useMemo, useState } from 'react'
 import { MpkHistory } from '../../api/client'
 
 const PALETTE = [
-  '#34d4c8',
-  '#a78bfa',
-  '#fbbf24',
-  '#f87171',
-  '#34d399',
-  '#60a5fa',
-  '#ec4899',
-  '#facc15',
-  '#c084fc',
-  '#fb923c',
+  'var(--chart-primary)',
+  'var(--data-1)',
+  'var(--data-2)',
+  'var(--data-3)',
+  'var(--data-4)',
+  'var(--data-5)',
+  'var(--data-6)',
 ]
 
 const W = 820
@@ -129,7 +126,8 @@ export function DynamicsChart({ history }: { history: MpkHistory }) {
                 y1={yForLevel(lvl)}
                 x2={W - PAD_R}
                 y2={yForLevel(lvl)}
-                stroke="rgba(255,255,255,0.05)"
+                stroke="var(--chart-grid)"
+                strokeOpacity="0.45"
                 strokeDasharray={lvl === 0 ? undefined : '2,2'}
               />
               <text
@@ -137,7 +135,7 @@ export function DynamicsChart({ history }: { history: MpkHistory }) {
                 y={yForLevel(lvl) + 4}
                 textAnchor="end"
                 fontSize="11"
-                fill="rgb(100,116,139)"
+                fill="var(--chart-muted)"
               >
                 {lvl}
               </text>
@@ -151,7 +149,7 @@ export function DynamicsChart({ history }: { history: MpkHistory }) {
               y={H - 10}
               textAnchor="middle"
               fontSize="11"
-              fill="rgb(100,116,139)"
+              fill="var(--chart-muted)"
             >
               {formatDateShort(d)}
             </text>
@@ -160,7 +158,7 @@ export function DynamicsChart({ history }: { history: MpkHistory }) {
           {competenciesWithHistory
             .filter((c) => selected.has(c.competency_id))
             .map((c) => {
-              const color = colorById.get(c.competency_id) || '#34d4c8'
+              const color = colorById.get(c.competency_id) || 'var(--chart-primary)'
               const pointsByDate = new Map(
                 c.points.map((p) => [p.assessed_at, p.level]),
               )
@@ -206,15 +204,15 @@ export function DynamicsChart({ history }: { history: MpkHistory }) {
                 y={Math.max(hover.y - 28, 4)}
                 width={210}
                 height={24}
-                fill="rgba(10,15,30,0.95)"
-                stroke="rgba(255,255,255,0.1)"
+                fill="var(--chart-tooltip)"
+                stroke="var(--chart-border)"
                 rx={4}
               />
               <text
                 x={Math.min(hover.x + 14, W - 214)}
                 y={Math.max(hover.y - 11, 20)}
                 fontSize="11"
-                fill="rgb(226,232,240)"
+                fill="var(--chart-tooltip-text)"
               >
                 {hover.label}
               </text>

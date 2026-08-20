@@ -9,11 +9,13 @@
 
 Запуск:  uv run python -m scripts.seed_dev_metrics
 """
+
 from __future__ import annotations
 
 import asyncio
 import random
 import sys
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import delete, select
@@ -108,9 +110,7 @@ def _pick_size_bucket(rnd: random.Random) -> tuple[str, int]:
     return "XL", rnd.randint(1000, 2500)
 
 
-def _mock_signals(
-    rnd: random.Random, size_bucket: str, has_tests: bool
-) -> dict:
+def _mock_signals(rnd: random.Random, size_bucket: str, has_tests: bool) -> dict:
     small = size_bucket in ("XS", "S")
     return {
         "small_size": small,
@@ -133,7 +133,7 @@ def _quality_ratio(signals: dict) -> float:
 
 
 async def _competencies_for_employee(
-    session, employee: Employee, all_competencies: list[Competency]
+    session, employee: Employee, all_competencies: Sequence[Competency]
 ) -> list[Competency]:
     """Подобрать 4..7 компетенций для извлечения.
     Если у сотрудника задана роль — берём её ключевые. Иначе случайные.
@@ -168,39 +168,37 @@ async def main() -> None:
             sys.exit(1)
 
         employees = (
-            await session.execute(
-                select(Employee)
-                .where(
-                    Employee.kind == "employee",
-                    Employee.left_at.is_(None),
+            (
+                await session.execute(
+                    select(Employee)
+                    .where(
+                        Employee.kind == "employee",
+                        Employee.left_at.is_(None),
+                    )
+                    .order_by(Employee.id)
                 )
-                .order_by(Employee.id)
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         all_competencies = (
-            await session.execute(select(Competency).order_by(Competency.sort_order))
-        ).scalars().all()
-        projects = (
-            await session.execute(select(Project))
-        ).scalars().all()
+            (await session.execute(select(Competency).order_by(Competency.sort_order)))
+            .scalars()
+            .all()
+        )
+        projects = (await session.execute(select(Project))).scalars().all()
         project_by_id = {p.id: p for p in projects}
 
         # Чистим старые данные
         emp_ids = [e.id for e in employees]
         if emp_ids:
             await session.execute(
-                delete(ExtractedCompetency).where(
-                    ExtractedCompetency.employee_id.in_(emp_ids)
-                )
+                delete(ExtractedCompetency).where(ExtractedCompetency.employee_id.in_(emp_ids))
             )
+            await session.execute(delete(PullRequest).where(PullRequest.employee_id.in_(emp_ids)))
             await session.execute(
-                delete(PullRequest).where(PullRequest.employee_id.in_(emp_ids))
-            )
-            await session.execute(
-                delete(DevMetricsSnapshot).where(
-                    DevMetricsSnapshot.employee_id.in_(emp_ids)
-                )
+                delete(DevMetricsSnapshot).where(DevMetricsSnapshot.employee_id.in_(emp_ids))
             )
             await session.commit()
 
@@ -241,15 +239,11 @@ async def main() -> None:
                 # ~50% PR-ов содержат тесты
                 has_tests = seed_per_emp.random() > 0.5
                 tests_changed = (
-                    seed_per_emp.randint(1, max(2, files_changed // 3))
-                    if has_tests
-                    else 0
+                    seed_per_emp.randint(1, max(2, files_changed // 3)) if has_tests else 0
                 )
                 signals = _mock_signals(seed_per_emp, size_bucket, has_tests)
                 qr = _quality_ratio(signals)
-                iterations = seed_per_emp.choices(
-                    [1, 2, 3, 4, 5], weights=[40, 30, 15, 10, 5]
-                )[0]
+                iterations = seed_per_emp.choices([1, 2, 3, 4, 5], weights=[40, 30, 15, 10, 5])[0]
                 state = seed_per_emp.choices(
                     ["merged", "merged", "merged", "open", "closed"],
                     weights=[60, 15, 10, 10, 5],
@@ -330,9 +324,7 @@ async def main() -> None:
                 mr_with_review_discussion=with_review,
                 avg_iterations=round(sum_iter / n, 2) if n else 0.0,
                 avg_time_to_merge_hours=(
-                    round(sum(ttm_values) / len(ttm_values), 1)
-                    if ttm_values
-                    else None
+                    round(sum(ttm_values) / len(ttm_values), 1) if ttm_values else None
                 ),
                 avg_quality_ratio=round(sum_qr / n, 2) if n else 0.0,
                 comments_given=seed_per_emp.randint(5, 60),
@@ -344,9 +336,7 @@ async def main() -> None:
             total_snapshots += 1
 
             # 3) ExtractedCompetency — 4..7 компетенций с привязкой к 2..5 PR-ам
-            comp_sample = await _competencies_for_employee(
-                session, emp, all_competencies
-            )
+            comp_sample = await _competencies_for_employee(session, emp, all_competencies)
             for comp in comp_sample:
                 pr_examples_n = seed_per_emp.randint(2, min(5, n))
                 example_prs = seed_per_emp.sample(prs_created, k=pr_examples_n)
@@ -380,9 +370,7 @@ async def main() -> None:
                 total_extracted += 1
 
             await session.commit()
-            print(
-                f"  • {emp.full_name}: {n} PR-ов, {len(comp_sample)} компетенций"
-            )
+            print(f"  • {emp.full_name}: {n} PR-ов, {len(comp_sample)} компетенций")
 
         print()
         print(f"Сотрудников обработано: {len(employees)}")

@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   DevMetricsSnapshotPublic,
   PullRequestPublic,
+  PullRequestStatusAccess,
+  PullRequestStatusSync,
   QualityBreakdownComponents,
   WipMrItem,
   api,
@@ -46,7 +48,7 @@ function Tile({
           </>
         )}
       </div>
-      <div className="mt-1 text-2xl font-semibold text-accent">{value}</div>
+      <div className="mt-1 text-2xl font-semibold text-slate-200">{value}</div>
       {hint && <div className="mt-1 text-[11px] text-slate-500">{hint}</div>}
     </div>
   )
@@ -73,19 +75,19 @@ function QualityBreakdownBar({
       label: 'conv. commits',
       pct: breakdown.conventional_commits_pct,
       weight: wConv,
-      color: 'bg-sky-500/60',
+      color: 'bg-data-1',
     },
     {
       label: 'описание',
       pct: breakdown.description_pct,
       weight: wDesc,
-      color: 'bg-amber-500/60',
+      color: 'bg-data-2',
     },
     {
       label: 'размер PR',
       pct: breakdown.size_pct,
       weight: wSize,
-      color: 'bg-emerald-500/60',
+      color: 'bg-data-3',
     },
   ]
   // Шкала бара: каждый сегмент занимает (weight×100) ширины, заполнен на pct.
@@ -120,45 +122,137 @@ function QualityBreakdownBar({
 }
 
 function WipMrsList({
+  employeeId,
   items,
+  prs,
+  syncedStatuses,
+  onSynced,
   threshold,
 }: {
+  employeeId: number
   items: WipMrItem[]
+  prs: PullRequestPublic[]
+  syncedStatuses: Record<string, PullRequestStatusSync>
+  onSynced: (key: string, status: PullRequestStatusSync) => void
   threshold: number | null
 }) {
-  if (items.length === 0) return null
-  const stale = items.filter((x) => x.is_stale)
-  const fresh = items.filter((x) => !x.is_stale)
+  const [access, setAccess] = useState<Record<string, PullRequestStatusAccess>>({})
+  const [checking, setChecking] = useState<Set<string>>(new Set())
+  const [syncing, setSyncing] = useState<Set<string>>(new Set())
+  const [syncErrors, setSyncErrors] = useState<Record<string, string>>({})
+  const [accessCheckVersion, setAccessCheckVersion] = useState(0)
+  const autoAttempted = useRef<Set<string>>(new Set())
+  useEffect(() => { autoAttempted.current.clear() }, [employeeId])
+  const prByKey = useMemo(() => new Map(prs.map((pr) => [`${pr.project_id ?? 'none'}:${pr.id}`, pr])), [prs])
+  const stateOf = (item: WipMrItem) => syncedStatuses[`${item.project_id ?? 'none'}:${item.mr_iid}`]?.state || prByKey.get(`${item.project_id ?? 'none'}:${item.mr_iid}`)?.state || item.state || 'unknown'
+  const stateOfPr = (pr: PullRequestPublic) => syncedStatuses[`${pr.project_id ?? 'none'}:${pr.id}`]?.state || pr.state
+  const repositoryKey = (url: string) => url.split('/-/merge_requests/', 1)[0]
+  const syncCandidates = useMemo(() => {
+    const targets = new Map<string, { key: string; url: string }>()
+    for (const item of items) {
+      const key = `${item.project_id ?? 'none'}:${item.mr_iid}`
+      const state = stateOf(item)
+      if (item.url && (state === 'unknown' || (state === 'open' && item.is_stale))) {
+        targets.set(key, { key, url: item.url })
+      }
+    }
+    for (const pr of prs) {
+      const key = `${pr.project_id ?? 'none'}:${pr.id}`
+      if (pr.url && stateOfPr(pr) === 'unknown') targets.set(key, { key, url: pr.url })
+    }
+    return [...targets.values()]
+  }, [items, prs, syncedStatuses])
+
+  useEffect(() => {
+    let cancelled = false
+    const representatives = new Map<string, string>()
+    for (const target of syncCandidates) {
+      representatives.set(repositoryKey(target.url), target.url)
+    }
+    const missing = [...representatives].filter(([key]) => access[key] === undefined)
+    if (missing.length === 0) return
+    setChecking((previous) => new Set([...previous, ...missing.map(([key]) => key)]))
+    void Promise.all(missing.map(async ([key, url]) => {
+      try {
+        const result = await api.employees.pullRequestStatusAccess(employeeId, url)
+        if (!cancelled) setAccess((previous) => ({ ...previous, [key]: result }))
+      } catch (error) {
+        if (!cancelled) setAccess((previous) => ({ ...previous, [key]: { available: false, reason: (error as Error).message, auto_sync_enabled: false } }))
+      } finally {
+        if (!cancelled) setChecking((previous) => { const next = new Set(previous); next.delete(key); return next })
+      }
+    }))
+    return () => { cancelled = true }
+  }, [employeeId, syncCandidates, accessCheckVersion])
+
+  const visible = items.filter((item) => ['open', 'unknown'].includes(stateOf(item)))
+  const stale = visible.filter((x) => stateOf(x) === 'open' && x.is_stale)
+  const fresh = visible.filter((x) => stateOf(x) !== 'open' || !x.is_stale)
   const sorted = [...stale, ...fresh].sort((a, b) => b.age_days - a.age_days)
+  const accessibleCandidates = syncCandidates.filter((target) => access[repositoryKey(target.url)]?.available)
+  const accessChecking = syncCandidates.some((target) => checking.has(repositoryKey(target.url)) || access[repositoryKey(target.url)] === undefined)
+  const autoSyncEnabled = Object.values(access).some((item) => item.auto_sync_enabled)
+  const syncTargets = async (targets: Array<{ key: string; url: string }>) => {
+    const keys = targets.map((target) => target.key)
+    setSyncing((previous) => new Set([...previous, ...keys]))
+    await Promise.all(targets.map(async (target) => {
+      try { onSynced(target.key, await api.employees.syncPullRequestStatus(employeeId, target.url)) }
+      catch (error) { setSyncErrors((previous) => ({ ...previous, [target.key]: (error as Error).message })) }
+      finally { setSyncing((previous) => { const next = new Set(previous); next.delete(target.key); return next }) }
+    }))
+  }
+  const syncAll = async () => {
+    setSyncErrors({})
+    await syncTargets(accessibleCandidates)
+  }
+  useEffect(() => {
+    if (accessChecking || !autoSyncEnabled) return
+    const targets = accessibleCandidates.filter((target) => !autoAttempted.current.has(target.key))
+    if (targets.length === 0) return
+    targets.forEach((target) => autoAttempted.current.add(target.key))
+    void syncTargets(targets)
+  }, [accessChecking, accessibleCandidates, autoSyncEnabled])
+  if (visible.length === 0 && syncCandidates.length === 0) return null
+  const bulkDisabledReason = accessChecking ? 'Проверяем доступ к репозиториям…' : accessibleCandidates.length === 0 ? 'Нет доступа к репозиториям PR, требующих сверки' : null
+  const retryAccess = () => {
+    autoAttempted.current.clear()
+    setAccess({})
+    setAccessCheckVersion((value) => value + 1)
+  }
   return (
     <div className="rounded-2xl bg-bg-elevated p-4 ring-1 ring-white/5">
-      <div className="mb-3 flex items-baseline justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="text-xs uppercase tracking-wide text-slate-500">
-          Открытые PR-ы
+          Открытые PR-ы и PR с неизвестным статусом
         </div>
-        {threshold !== null && (
-          <div className="text-[10px] text-slate-600">
-            «зависший» = больше {threshold} дн.
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {threshold !== null && <div className="text-[10px] text-slate-600">«зависший» = больше {threshold} дн.</div>}
+          {!accessChecking && !autoSyncEnabled && syncCandidates.length > 0 && <div className="text-[10px] text-slate-500">автосинхронизация отключена</div>}
+          {syncCandidates.length > 0 && <button type="button" disabled={Boolean(bulkDisabledReason) || syncing.size > 0} title={bulkDisabledReason || `Повторно получить статусы ${accessibleCandidates.length} PR напрямую из GitLab`} onClick={() => void syncAll()} className="rounded-lg bg-primary-soft px-3 py-2 text-xs text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-40">{syncing.size > 0 ? `Синхронизация: ${syncing.size}` : `Синхронизировать статусы (${accessibleCandidates.length === syncCandidates.length ? syncCandidates.length : `${accessibleCandidates.length} из ${syncCandidates.length}`})`}</button>}
+          {syncCandidates.length > 0 && !accessChecking && accessibleCandidates.length < syncCandidates.length && <button type="button" onClick={retryAccess} className="rounded-lg px-2 py-1.5 text-[11px] text-ink-muted ring-1 ring-outline-subtle hover:text-ink">Проверить доступ ещё раз</button>}
+        </div>
       </div>
       <ul className="space-y-1.5">
-        {sorted.map((w) => (
+        {sorted.map((w) => {
+          const key = `${w.project_id ?? 'none'}:${w.mr_iid}`
+          const state = stateOf(w)
+          const confirmedStale = state === 'open' && w.is_stale
+          return (
           <li
-            key={w.mr_iid}
+            key={key}
             className={
-              'flex items-baseline gap-2 rounded-lg px-2.5 py-1.5 text-[12px] ring-1 ' +
-              (w.is_stale
-                ? 'bg-rose-500/5 ring-rose-500/30'
-                : 'bg-bg-panel/40 ring-white/5')
+              'flex items-baseline gap-2 rounded-lg border px-2.5 py-1.5 text-[12px] ' +
+              (confirmedStale
+                ? 'semantic-row-warning border-l-2'
+                : 'border-outline-strong bg-surface')
             }
           >
             <span
               className={
                 'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-mono ' +
-                (w.is_stale
-                  ? 'bg-rose-500/20 text-rose-200'
-                  : 'bg-amber-500/15 text-amber-200')
+                (confirmedStale
+                  ? 'semantic-status-warning'
+                  : 'semantic-status-neutral')
               }
             >
               {w.age_days}д
@@ -181,9 +275,13 @@ function WipMrsList({
               <div className="text-[10px] text-slate-500">
                 {w.project_name || '—'} · !{w.mr_iid}
               </div>
+              {syncErrors[key] && <div className="mt-1 text-[10px] text-danger">{syncErrors[key]}</div>}
             </div>
+            <span className={state === 'unknown' ? 'rounded bg-slate-500/15 px-2 py-1 text-[10px] uppercase text-slate-400' : 'rounded bg-amber-500/15 px-2 py-1 text-[10px] uppercase text-amber-400'}>{state === 'unknown' ? 'Unknown' : 'Open'}</span>
+            {syncing.has(key) && <span className="text-[10px] text-primary">синхронизация…</span>}
           </li>
-        ))}
+          )
+        })}
       </ul>
     </div>
   )
@@ -197,7 +295,7 @@ function SizeBar({ snap }: { snap: DevMetricsSnapshotPublic }) {
     { label: 'XS', n: snap.mr_size_xs, color: 'bg-emerald-500/60' },
     { label: 'S', n: snap.mr_size_s, color: 'bg-emerald-500/40' },
     { label: 'M', n: snap.mr_size_m, color: 'bg-amber-500/50' },
-    { label: 'L', n: snap.mr_size_l, color: 'bg-orange-500/60' },
+    { label: 'L', n: snap.mr_size_l, color: 'bg-data-4' },
     { label: 'XL', n: snap.mr_size_xl, color: 'bg-rose-500/60' },
   ]
   return (
@@ -241,15 +339,17 @@ export function DevMetricsTab({ employeeId }: { employeeId: number }) {
   )
   const [prs, setPrs] = useState<PullRequestPublic[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [syncedStatuses, setSyncedStatuses] = useState<Record<string, PullRequestStatusSync>>({})
 
   useEffect(() => {
     let cancelled = false
     const q = presetToQuery(period)
     setSnap(undefined)
     setPrs(null)
+    setSyncedStatuses({})
     Promise.all([
       api.employees.devMetrics(employeeId, q),
-      api.employees.pullRequests(employeeId, { ...q, limit: 50 }),
+      api.employees.pullRequests(employeeId, { ...q, limit: 200 }),
     ])
       .then(([s, p]) => {
         if (!cancelled) {
@@ -307,6 +407,11 @@ export function DevMetricsTab({ employeeId }: { employeeId: number }) {
       : snap.avg_quality_ratio >= 0.5
         ? 'text-amber-400'
         : 'text-rose-400'
+  const prByKey = new Map((prs || []).map((pr) => [`${pr.project_id ?? 'none'}:${pr.id}`, pr]))
+  const wipState = (item: WipMrItem) => syncedStatuses[`${item.project_id ?? 'none'}:${item.mr_iid}`]?.state || prByKey.get(`${item.project_id ?? 'none'}:${item.mr_iid}`)?.state || item.state || 'unknown'
+  const confirmedWip = snap.wip_mrs.filter((item) => wipState(item) === 'open')
+  const unknownWip = snap.wip_mrs.filter((item) => wipState(item) === 'unknown')
+  const confirmedStale = confirmedWip.filter((item) => item.is_stale)
 
   return (
     <div className="space-y-6">
@@ -316,7 +421,7 @@ export function DevMetricsTab({ employeeId }: { employeeId: number }) {
         <Tile
           label="Pull-requests"
           value={snap.total_mrs}
-          hint={`${snap.wip_count} в работе · ${snap.stale_count} зависших`}
+          hint={`${confirmedWip.length} в работе · ${confirmedStale.length} зависших · ${unknownWip.length} Unknown`}
           tooltip="Число PR, созданных сотрудником за период (mrCount из CodeBuddy). Снизу: «в работе» — открытые сейчас, «зависших» — открытые дольше порога staleThresholdDays."
         />
         <Tile
@@ -405,7 +510,11 @@ export function DevMetricsTab({ employeeId }: { employeeId: number }) {
 
       {snap.wip_mrs && snap.wip_mrs.length > 0 && (
         <WipMrsList
+          employeeId={employeeId}
           items={snap.wip_mrs}
+          prs={prs || []}
+          syncedStatuses={syncedStatuses}
+          onSynced={(key, status) => setSyncedStatuses((previous) => ({ ...previous, [key]: status }))}
           threshold={snap.stale_threshold_days}
         />
       )}
@@ -434,8 +543,9 @@ export function DevMetricsTab({ employeeId }: { employeeId: number }) {
                 </tr>
               </thead>
               <tbody>
-                {prs.map((p) => (
-                  <tr key={p.id} className="border-t border-white/5">
+                {prs.map((p) => {
+                  const displayedState = syncedStatuses[`${p.project_id ?? 'none'}:${p.id}`]?.state || p.state
+                  return <tr key={`${p.project_id ?? 'none'}:${p.id}`} className="border-t border-white/5">
                     <td className="px-3 py-2">
                       {p.url ? (
                         <a
@@ -518,18 +628,18 @@ export function DevMetricsTab({ employeeId }: { employeeId: number }) {
                       <span
                         className={
                           'rounded px-2 py-0.5 ' +
-                          (STATE_TONE[p.state] ||
+                          (STATE_TONE[displayedState] ||
                             'bg-slate-500/15 text-slate-400')
                         }
                       >
-                        {p.state}
+                        {displayedState}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-slate-500">
                       {formatDate(p.created_at_ext)}
                     </td>
                   </tr>
-                ))}
+                })}
               </tbody>
             </table>
           </div>

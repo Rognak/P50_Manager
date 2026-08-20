@@ -23,7 +23,10 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     )
     try:
         payload = decode_access_token(token)
-        user_id = int(payload.get("sub"))
+        subject = payload.get("sub")
+        if not isinstance(subject, (str, int)):
+            raise ValueError("JWT subject отсутствует")
+        user_id = int(subject)
     except (JWTError, TypeError, ValueError):
         raise credentials_exc
 
@@ -91,8 +94,8 @@ AdminUser = Annotated[User, Depends(require_admin)]
 
 def effective_owner_id(current_user: User, manager_id: int | None) -> int | None:
     """Какого владельца смотрит дашборд / список:
-      • non-core-team: всегда сам себя, manager_id игнорируется;
-      • core_team   : manager_id (None — значит «никто не выбран» → empty).
+    • non-core-team: всегда сам себя, manager_id игнорируется;
+    • core_team   : manager_id (None — значит «никто не выбран» → empty).
     """
     if is_core_team(current_user):
         return manager_id

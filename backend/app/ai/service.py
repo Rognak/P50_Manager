@@ -1,6 +1,8 @@
 """AI-сервис поверх DeepSeek (OpenAI-compatible). Синхронные helper-функции генерации
 вопросов/заданий/summary для встречи по МПК."""
+
 import json
+from typing import TypeVar
 
 from fastapi import HTTPException
 from openai import AsyncOpenAI, OpenAIError
@@ -91,9 +93,10 @@ def build_employee_context(
     return "\n".join(lines)
 
 
-async def _json_call(
-    client: AsyncOpenAI, prompt: str, schema: type[BaseModel]
-) -> BaseModel:
+SchemaT = TypeVar("SchemaT", bound=BaseModel)
+
+
+async def _json_call(client: AsyncOpenAI, prompt: str, schema: type[SchemaT]) -> SchemaT:
     try:
         resp = await client.chat.completions.create(
             model=model_of(client),
@@ -103,7 +106,7 @@ async def _json_call(
             ],
             response_format={"type": "json_object"},
             temperature=0.5,
-            max_tokens=20000
+            max_tokens=20000,
         )
     except OpenAIError as e:
         raise HTTPException(status_code=502, detail=f"Ошибка AI-провайдера: {e}")
@@ -122,9 +125,7 @@ async def _json_call(
     try:
         return schema.model_validate(data)
     except ValidationError as e:
-        raise HTTPException(
-            status_code=502, detail=f"AI вернул данные не по схеме: {e}"
-        )
+        raise HTTPException(status_code=502, detail=f"AI вернул данные не по схеме: {e}")
 
 
 async def generate_questions(
@@ -218,7 +219,7 @@ async def _markdown_call(client: AsyncOpenAI, prompt: str) -> str:
         raise HTTPException(status_code=502, detail=f"Ошибка AI-провайдера: {e}")
     text = (resp.choices[0].message.content or "").strip()
     if text.startswith("```markdown"):
-        text = text[len("```markdown"):].strip("`").strip()
+        text = text[len("```markdown") :].strip("`").strip()
     elif text.startswith("```"):
         text = text.strip("`").strip()
     return text
@@ -268,7 +269,6 @@ async def generate_preparation_md(client: AsyncOpenAI, context: str) -> str:
         "Внутри каждого раздела ключевые компетенции идут ПЕРВЫМИ, неключевые — после.\n\n"
         "Документ содержит РОВНО три основных раздела + блок литературы в конце. "
         "Каждый — `## Заголовок`.\n\n"
-
         "## Теоретическая часть\n"
         "Включает темы и вопросы. Структурируется так:\n"
         "  ### Темы для подготовки\n"
@@ -281,7 +281,6 @@ async def generate_preparation_md(client: AsyncOpenAI, context: str) -> str:
         "`#### Название компетенции (★)`. Внутри — нумерованный список вопросов "
         "(нумерация СКВОЗНАЯ через все компетенции). По ключевым — 5–8 вопросов на каждую, "
         "по неключевым — 2–4. БЕЗ ответов.\n\n"
-
         "## Практическая часть\n"
         "Содержит 10–18 практических заданий. По ключевым компетенциям — больше заданий "
         "(60–70% от общего числа). Группируй так же: подзаголовки "
@@ -291,14 +290,12 @@ async def generate_preparation_md(client: AsyncOpenAI, context: str) -> str:
         "  - формулировка на 3–6 предложений: что дано, что сделать, что ожидается\n"
         "  - при уместности — фрагмент кода/данных в тройных backticks с языком (```python, ```sql ...)\n"
         "БЕЗ решений и ответов. Задания должны быть проверяемыми.\n\n"
-
         "## Литература и курсы\n"
         "В САМОМ КОНЦЕ документа. Группировка по компетенциям, ключевые первыми. "
         "Для каждой — подзаголовок `### Название компетенции (★)` и список ресурсов из "
         "контекста («ДОСТУПНЫЕ РЕСУРСЫ ОБУЧЕНИЯ»). Указывай название, формат, провайдера "
         "и ссылку. Если для компетенции в контексте ресурсов нет — пиши: "
         "«В справочнике МПК ресурсы не заданы».\n\n"
-
         "Тон — деловой, нейтральный. Никаких вступлений, заключений, советов, пожеланий."
     )
     return await _markdown_call(client, prompt)
@@ -324,9 +321,7 @@ async def generate_rotation_rationale(client: AsyncOpenAI, context: str) -> str:
     return await _markdown_call(client, prompt)
 
 
-async def generate_candidate_screening(
-    client: AsyncOpenAI, context: str
-) -> AICandidateScreening:
+async def generate_candidate_screening(client: AsyncOpenAI, context: str) -> AICandidateScreening:
     """AI-скрининг резюме: качественное решение (да/нет) + обоснование.
 
     Никаких цифровых баллов — модель не сможет их обосновать, а руководителю
@@ -372,9 +367,7 @@ async def generate_candidate_screening(
     return result  # type: ignore[return-value]
 
 
-async def generate_digital_profile(
-    client: AsyncOpenAI, context: str
-) -> DigitalProfileResult:
+async def generate_digital_profile(client: AsyncOpenAI, context: str) -> DigitalProfileResult:
     """AI-цифровой профиль сотрудника. Строгая JSON-схема (DigitalProfileResult)."""
     prompt = (
         f"{context}\n\n"
@@ -475,9 +468,7 @@ async def generate_self_review_burnout(client: AsyncOpenAI, context: str) -> str
     return await _markdown_call(client, prompt)
 
 
-async def generate_self_review_calibration(
-    client: AsyncOpenAI, context: str
-) -> str:
+async def generate_self_review_calibration(client: AsyncOpenAI, context: str) -> str:
     prompt = (
         f"{context}\n\n"
         "Задача: КАЛИБРОВКА — сравнить, как сотрудник описывает себя в Self-Review "

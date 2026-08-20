@@ -11,6 +11,7 @@
 
 Запуск:  uv run python -m scripts.seed_tech_maturity
 """
+
 import asyncio
 import random
 from datetime import UTC, date, datetime, timedelta
@@ -30,28 +31,28 @@ ADMIN_EMAIL = "admin@example.com"
 # Например (0.9, 0.7, 0.4, 0.0, 0.0) — почти полный L1, частичный L2-L3.
 
 # Сценарий A: «зрелый проект, рост от среднего к высокому»
-SCENARIO_MATURE = [
-    (0.85, 0.6, 0.3, 0.0, 0.0),   # Q-3
+SCENARIO_MATURE: list[tuple[float, ...]] = [
+    (0.85, 0.6, 0.3, 0.0, 0.0),  # Q-3
     (0.95, 0.75, 0.5, 0.1, 0.0),  # Q-2
     (1.0, 0.85, 0.65, 0.3, 0.0),  # Q-1
-    (1.0, 0.9, 0.8, 0.5, 0.1),    # Q0 (текущий)
+    (1.0, 0.9, 0.8, 0.5, 0.1),  # Q0 (текущий)
 ]
 
 # Сценарий B: «средний рост» — 3 квартала
-SCENARIO_GROWING = [
+SCENARIO_GROWING: list[tuple[float, ...]] = [
     (0.6, 0.3, 0.1, 0.0, 0.0),
     (0.85, 0.55, 0.25, 0.0, 0.0),
     (0.95, 0.7, 0.4, 0.1, 0.0),
 ]
 
 # Сценарий C: «новый проект, начали недавно» — 2 квартала
-SCENARIO_NEW = [
+SCENARIO_NEW: list[tuple[float, ...]] = [
     (0.4, 0.15, 0.0, 0.0, 0.0),
     (0.7, 0.4, 0.15, 0.0, 0.0),
 ]
 
 # Сценарий D: «застрявший в начале» — 3 квартала почти без роста
-SCENARIO_STUCK = [
+SCENARIO_STUCK: list[tuple[float, ...]] = [
     (0.5, 0.1, 0.0, 0.0, 0.0),
     (0.6, 0.15, 0.05, 0.0, 0.0),
     (0.65, 0.2, 0.05, 0.0, 0.0),
@@ -61,11 +62,11 @@ SCENARIO_STUCK = [
 # Профиль (множители 0.5..1.4) — расхождение направлений у одного проекта,
 # чтобы линии в графике динамики не слипались.
 PROJECT_SCENARIOS: dict[str, list[tuple[float, ...]]] = {
-    "U190001633": SCENARIO_MATURE,    # ГибрИМА — старый, зрелый
-    "U230008409": SCENARIO_GROWING,   # Уберизация — растёт
-    "M-001": SCENARIO_GROWING,        # Mobile — растёт
-    "QA-AUTO": SCENARIO_NEW,          # Автоматизация регресса — новый
-    "RND-2026": SCENARIO_STUCK,       # RND — застрявший
+    "U190001633": SCENARIO_MATURE,  # ГибрИМА — старый, зрелый
+    "U230008409": SCENARIO_GROWING,  # Уберизация — растёт
+    "M-001": SCENARIO_GROWING,  # Mobile — растёт
+    "QA-AUTO": SCENARIO_NEW,  # Автоматизация регресса — новый
+    "RND-2026": SCENARIO_STUCK,  # RND — застрявший
 }
 
 # directionCode → множитель силы направления у проекта
@@ -153,9 +154,7 @@ async def main() -> None:
     today = date.today()
 
     async with SessionLocal() as session:
-        admin = (
-            await session.execute(select(User).where(User.email == ADMIN_EMAIL))
-        ).scalar_one()
+        admin = (await session.execute(select(User).where(User.email == ADMIN_EMAIL))).scalar_one()
 
         # очистка
         await session.execute(delete(TechMaturitySurvey))

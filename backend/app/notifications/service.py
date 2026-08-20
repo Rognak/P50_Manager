@@ -5,6 +5,7 @@
   2. caller делает session.commit();
   3. caller вызывает `publish_pending(notifs)` — пушит в hub.
 """
+
 from __future__ import annotations
 
 from typing import Any, Iterable
@@ -36,9 +37,7 @@ async def record_notifications(
         return []
 
     excluded = set(exclude_user_ids)
-    targets = [
-        uid for uid in dict.fromkeys(recipient_user_ids) if uid and uid not in excluded
-    ]
+    targets = [uid for uid in dict.fromkeys(recipient_user_ids) if uid and uid not in excluded]
     if not targets:
         return []
     created: list[Notification] = []

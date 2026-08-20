@@ -4,12 +4,14 @@
 считает per-developer метрики, composite-рейтинг, здоровье продукта и
 эвристические сигналы. AI-обзор живёт отдельно (ARQ-задача).
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import date
+from typing import Literal
 
 from app.codebuddy.client import CodeBuddyAPIError
 from app.codebuddy.service import codebuddy_service
@@ -67,15 +69,13 @@ async def gather_raw_devs(
         comments_written = 0
         stale_mrs: list[WipMrItem] = []
         try:
-            snap = await codebuddy_service.get_dev_metrics(
-                emp, period_from, period_to
-            )
+            snap = await codebuddy_service.get_dev_metrics(emp, period_from, period_to)
             if snap is not None:
                 comments_written = snap.comments_given
                 stale_mrs = [
                     w
                     for w in (snap.wip_mrs or [])
-                    if w.is_stale and w.project_id in repo_pids
+                    if w.is_stale and w.state == "open" and w.project_id in repo_pids
                 ]
         except CodeBuddyAPIError as e:
             logger.warning("perf: /developers for emp %s: %s", emp.id, e)
@@ -95,9 +95,7 @@ async def gather_prs_only(
 
     async def _one(emp: Employee) -> list[PullRequestPublic]:
         try:
-            prs = await codebuddy_service.get_pull_requests(
-                emp, period_from, period_to, limit=200
-            )
+            prs = await codebuddy_service.get_pull_requests(emp, period_from, period_to, limit=200)
             return [p for p in prs if p.project_id in repo_pids]
         except CodeBuddyAPIError as e:
             logger.warning("trends: /mrs for emp %s: %s", emp.id, e)
@@ -174,14 +172,10 @@ def build_developers(
     prev_score_by_emp: dict[int, float] | None = None,
 ) -> list[DeveloperPerformance]:
     """Считает рейтинг по сырым данным. prev_* — для дельт (опц.)."""
-    aggs: dict[int, _DevAgg] = {
-        rd.employee.id: _aggregate_prs(rd.prs) for rd in raw_devs
-    }
+    aggs: dict[int, _DevAgg] = {rd.employee.id: _aggregate_prs(rd.prs) for rd in raw_devs}
     # Нормализаторы — максимумы по команде.
     max_volume = max((a.mr_count for a in aggs.values()), default=0) or 1
-    max_review = max(
-        (rd.comments_written for rd in raw_devs), default=0
-    ) or 1
+    max_review = max((rd.comments_written for rd in raw_devs), default=0) or 1
 
     out: list[DeveloperPerformance] = []
     for rd in raw_devs:
@@ -232,18 +226,10 @@ def build_developers(
                     low_rework=low_rework_ax,
                     volume=volume_ax,
                 ),
-                score_delta=(
-                    round(score - prev_score, 1)
-                    if prev_score is not None
-                    else None
-                ),
-                mr_count_delta=(
-                    a.mr_count - prev_a.mr_count if prev_a is not None else None
-                ),
+                score_delta=(round(score - prev_score, 1) if prev_score is not None else None),
+                mr_count_delta=(a.mr_count - prev_a.mr_count if prev_a is not None else None),
                 quality_delta=(
-                    round(a.avg_quality - prev_a.avg_quality, 4)
-                    if prev_a is not None
-                    else None
+                    round(a.avg_quality - prev_a.avg_quality, 4) if prev_a is not None else None
                 ),
             )
         )
@@ -251,9 +237,7 @@ def build_developers(
     return out
 
 
-def aggregate_for_deltas(raw_devs: list[RawDev]) -> tuple[
-    dict[int, _DevAgg], dict[int, float]
-]:
+def aggregate_for_deltas(raw_devs: list[RawDev]) -> tuple[dict[int, _DevAgg], dict[int, float]]:
     """Готовит prev-агрегаты + prev-score для передачи в build_developers."""
     devs = build_developers(raw_devs)
     aggs = {rd.employee.id: _aggregate_prs(rd.prs) for rd in raw_devs}
@@ -274,15 +258,10 @@ def build_health(
     prs_open = sum(1 for p in all_prs if p.state == "open")
     prs_merged = sum(1 for p in all_prs if p.state == "merged")
     prs_closed = sum(1 for p in all_prs if p.state == "closed")
-    avg_quality = (
-        round(sum(p.quality_ratio for p in all_prs) / total, 4)
-        if total
-        else None
-    )
+    avg_quality = round(sum(p.quality_ratio for p in all_prs) / total, 4) if total else None
     with_tests = (
         round(
-            sum(1 for p in all_prs if (p.signals or {}).get("has_tests"))
-            / total,
+            sum(1 for p in all_prs if (p.signals or {}).get("has_tests")) / total,
             4,
         )
         if total
@@ -295,11 +274,7 @@ def build_health(
     # распределение нагрузки
     per_dev_counts = [len(rd.prs) for rd in raw_devs]
     active = sum(1 for c in per_dev_counts if c > 0)
-    top_share = (
-        round(max(per_dev_counts) / total, 4)
-        if total and per_dev_counts
-        else None
-    )
+    top_share = round(max(per_dev_counts) / total, 4) if total and per_dev_counts else None
     reviewers = sum(1 for rd in raw_devs if rd.comments_written > 0)
 
     # интегральная оценка здоровья (0..100)
@@ -309,9 +284,8 @@ def build_health(
     stale_part = stale_free * 20
     coverage_ok = 1.0 - min(1.0, coverage_gap / 10.0)
     coverage_part = coverage_ok * 20
-    health_score = round(
-        quality_part + tests_part + stale_part + coverage_part, 1
-    )
+    health_score = round(quality_part + tests_part + stale_part + coverage_part, 1)
+    status: Literal["healthy", "attention", "critical"]
     if health_score >= 75 and bus_factor_count < 2:
         status = "healthy"
     elif health_score >= 50:
@@ -337,9 +311,7 @@ def build_health(
         reviewers_count=reviewers,
         health_status=status,
         health_score=health_score,
-        total_prs_delta=(
-            total - prev_total_prs if prev_total_prs is not None else None
-        ),
+        total_prs_delta=(total - prev_total_prs if prev_total_prs is not None else None),
         avg_quality_delta=(
             round((avg_quality or 0) - prev_avg_quality, 4)
             if prev_avg_quality is not None and avg_quality is not None
@@ -387,9 +359,7 @@ def build_signals(
                 ),
                 employee_id=emp_id,
                 employee_name=name,
-                evidence=[
-                    SignalEvidenceItem(label=c) for c in comps
-                ],
+                evidence=[SignalEvidenceItem(label=c) for c in comps],
             )
         )
 
@@ -399,18 +369,13 @@ def build_signals(
         prs = rd.prs if rd else []
 
         if rd and rd.stale_mrs:
-            stale_sorted = sorted(
-                rd.stale_mrs, key=lambda w: -w.age_days
-            )
+            stale_sorted = sorted(rd.stale_mrs, key=lambda w: -w.age_days)
             signals.append(
                 PerfSignal(
                     severity="warning",
                     kind="stale_prs",
                     title=f"Зависшие PR: {d.full_name}",
-                    detail=(
-                        f"{len(stale_sorted)} PR висят дольше порога — "
-                        f"нужно сдвинуть."
-                    ),
+                    detail=(f"{len(stale_sorted)} PR висят дольше порога — нужно сдвинуть."),
                     employee_id=d.employee_id,
                     employee_name=d.full_name,
                     evidence=[
@@ -418,11 +383,7 @@ def build_signals(
                             label=w.title or f"MR !{w.mr_iid}",
                             detail=(
                                 f"{w.age_days} дн · с {_fmt_dt(w.created_at)}"
-                                + (
-                                    f" · {w.project_name}"
-                                    if w.project_name
-                                    else ""
-                                )
+                                + (f" · {w.project_name}" if w.project_name else "")
                             ),
                             url=w.url,
                         )
@@ -498,10 +459,7 @@ def build_signals(
                     evidence=[
                         SignalEvidenceItem(
                             label=p.title or f"PR !{p.external_id}",
-                            detail=(
-                                f"{p.iterations} итераций · "
-                                f"{_fmt_dt(p.created_at_ext)}"
-                            ),
+                            detail=(f"{p.iterations} итераций · {_fmt_dt(p.created_at_ext)}"),
                             url=p.url,
                         )
                         for p in heavy[:15]
@@ -570,13 +528,8 @@ def build_signals(
                 ),
             )
         )
-    if (
-        health.team_size >= 3
-        and health.reviewers_count <= max(1, health.team_size // 3)
-    ):
-        reviewers = [
-            rd for rd in raw_devs if rd.comments_written > 0
-        ]
+    if health.team_size >= 3 and health.reviewers_count <= max(1, health.team_size // 3):
+        reviewers = [rd for rd in raw_devs if rd.comments_written > 0]
         signals.append(
             PerfSignal(
                 severity="info",

@@ -1,4 +1,5 @@
 """ARQ Redis pool — общий между FastAPI (для enqueue) и worker'ом (через тот же Redis-инстанс)."""
+
 from arq import create_pool
 from arq.connections import ArqRedis, RedisSettings
 

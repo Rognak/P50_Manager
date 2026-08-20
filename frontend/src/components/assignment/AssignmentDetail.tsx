@@ -18,7 +18,7 @@ const STATUS_LABEL: Record<AssignmentStatus, string> = {
 const STATUS_TONE: Record<AssignmentStatus, string> = {
   open: 'bg-amber-500/15 text-amber-300',
   in_progress: 'bg-accent/15 text-accent',
-  pending_review: 'bg-violet-500/15 text-violet-300',
+  pending_review: 'bg-surface-subtle text-ink-secondary ring-1 ring-outline-subtle',
   done: 'bg-emerald-500/15 text-emerald-300',
   cancelled: 'bg-slate-500/15 text-slate-400',
 }
@@ -315,7 +315,7 @@ export function AssignmentDetail({
       {/* actions */}
       <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
         {!editing && a.status === 'pending_review' && (
-          <span className="text-xs text-violet-300">
+          <span className="text-xs text-ink-secondary">
             {isCreator
               ? 'Адресат заявил выполнение — подтвердите или верните на доработку.'
               : 'Ожидаем подтверждения от инициатора.'}
@@ -340,7 +340,7 @@ export function AssignmentDetail({
                 <button
                   disabled={busy}
                   onClick={() => setStatus('pending_review')}
-                  className="rounded bg-violet-500/15 px-3 py-1 text-xs text-violet-300 hover:bg-violet-500/25"
+                  className="rounded bg-surface-subtle px-3 py-1 text-xs text-ink-secondary ring-1 ring-outline-subtle hover:text-ink"
                   title="Отправить инициатору на подтверждение"
                 >
                   Отметить выполненным

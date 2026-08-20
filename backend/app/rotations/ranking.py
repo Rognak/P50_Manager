@@ -15,6 +15,7 @@ score'ом. AI-обоснование к этому не относится — 
                          для которых сотрудник — единственный носитель
                          требуемого уровня среди ★-релевантных коллег.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -88,13 +89,12 @@ async def compute_candidates(
         return []
 
     emp_ids = [m.employee_id for m in members]
-    eq = await session.execute(
-        select(Employee).where(Employee.id.in_(emp_ids))
-    )
+    eq = await session.execute(select(Employee).where(Employee.id.in_(emp_ids)))
     employees = {e.id: e for e in eq.scalars()}
 
     # справочники для имён роли/грейда
     from app.models.mpk import Grade, Role  # локальный импорт во избежание циклов
+
     role_ids = {e.role_id for e in employees.values() if e.role_id}
     grade_ids = {e.grade_id for e in employees.values() if e.grade_id}
     role_name_by_id: dict[int, str] = {}
@@ -124,14 +124,11 @@ async def compute_candidates(
         key_set = {(rid, cid) for rid, cid in kq.all()}
 
     # required_level по ролям/грейдам участников
-    rg_pairs = {
-        (e.role_id, e.grade_id) for e in employees.values() if e.role_id and e.grade_id
-    }
+    rg_pairs = {(e.role_id, e.grade_id) for e in employees.values() if e.role_id and e.grade_id}
     required_map: dict[tuple[int, int, int], int] = {}
     if rg_pairs:
         conds = [
-            and_(RoleProfile.role_id == rid, RoleProfile.grade_id == gid)
-            for rid, gid in rg_pairs
+            and_(RoleProfile.role_id == rid, RoleProfile.grade_id == gid) for rid, gid in rg_pairs
         ]
         rpq = await session.execute(select(RoleProfile).where(or_(*conds)))
         for rp in rpq.scalars():
@@ -177,10 +174,9 @@ async def compute_candidates(
     name_by_comp: dict[int, str] = {pc.competency_id: "" for pc in stack}
     if name_by_comp:
         from app.models.mpk import Competency
+
         cq = await session.execute(
-            select(Competency.id, Competency.name).where(
-                Competency.id.in_(name_by_comp.keys())
-            )
+            select(Competency.id, Competency.name).where(Competency.id.in_(name_by_comp.keys()))
         )
         name_by_comp = {cid: name for cid, name in cq.all()}
 
@@ -266,12 +262,11 @@ async def compute_candidates_for_product(
         return []
 
     emp_ids = [m.employee_id for m in members]
-    eq = await session.execute(
-        select(Employee).where(Employee.id.in_(emp_ids))
-    )
+    eq = await session.execute(select(Employee).where(Employee.id.in_(emp_ids)))
     employees = {e.id: e for e in eq.scalars()}
 
     from app.models.mpk import Grade, Role
+
     role_ids = {e.role_id for e in employees.values() if e.role_id}
     grade_ids = {e.grade_id for e in employees.values() if e.grade_id}
     role_name_by_id: dict[int, str] = {}
@@ -298,16 +293,11 @@ async def compute_candidates_for_product(
         )
         key_set = {(rid, cid) for rid, cid in kq.all()}
 
-    rg_pairs = {
-        (e.role_id, e.grade_id)
-        for e in employees.values()
-        if e.role_id and e.grade_id
-    }
+    rg_pairs = {(e.role_id, e.grade_id) for e in employees.values() if e.role_id and e.grade_id}
     required_map: dict[tuple[int, int, int], int] = {}
     if rg_pairs:
         conds = [
-            and_(RoleProfile.role_id == rid, RoleProfile.grade_id == gid)
-            for rid, gid in rg_pairs
+            and_(RoleProfile.role_id == rid, RoleProfile.grade_id == gid) for rid, gid in rg_pairs
         ]
         rpq = await session.execute(select(RoleProfile).where(or_(*conds)))
         for rp in rpq.scalars():
@@ -350,10 +340,9 @@ async def compute_candidates_for_product(
     name_by_comp: dict[int, str] = {pc.competency_id: "" for pc in stack}
     if name_by_comp:
         from app.models.mpk import Competency
+
         cq = await session.execute(
-            select(Competency.id, Competency.name).where(
-                Competency.id.in_(name_by_comp.keys())
-            )
+            select(Competency.id, Competency.name).where(Competency.id.in_(name_by_comp.keys()))
         )
         name_by_comp = {cid: name for cid, name in cq.all()}
 
@@ -550,15 +539,11 @@ async def suggest_replacements(
 
     emp_out = await session.get(Employee, employee_id)
     if emp_out is None or emp_out.role_id is None:
-        return ReplacementsResult(
-            viable=[], blocked=[], needed=False, empty_reason=None
-        )
+        return ReplacementsResult(viable=[], blocked=[], needed=False, empty_reason=None)
 
     proj = await session.get(Project, from_project_id)
     if proj is None:
-        return ReplacementsResult(
-            viable=[], blocked=[], needed=False, empty_reason=None
-        )
+        return ReplacementsResult(viable=[], blocked=[], needed=False, empty_reason=None)
 
     # стек проекта
     pcq = await session.execute(
@@ -566,9 +551,7 @@ async def suggest_replacements(
     )
     stack = list(pcq.scalars())
     if not stack:
-        return ReplacementsResult(
-            viable=[], blocked=[], needed=False, empty_reason=None
-        )
+        return ReplacementsResult(viable=[], blocked=[], needed=False, empty_reason=None)
 
     # ★ для роли уходящего
     out_key_q = await session.execute(
@@ -649,9 +632,7 @@ async def suggest_replacements(
         )
 
     # роли/грейды кандидатов
-    eq = await session.execute(
-        select(Employee).where(Employee.id.in_(cand_emp_ids))
-    )
+    eq = await session.execute(select(Employee).where(Employee.id.in_(cand_emp_ids)))
     emp_by_id = {e.id: e for e in eq.scalars()}
 
     role_ids = {e.role_id for e in emp_by_id.values() if e.role_id}
@@ -665,16 +646,12 @@ async def suggest_replacements(
 
     from app.models.mpk import Grade, Role
 
-    rq = await session.execute(
-        select(Role.id, Role.name).where(Role.id.in_(role_ids))
-    )
+    rq = await session.execute(select(Role.id, Role.name).where(Role.id.in_(role_ids)))
     role_name_by_id = {rid: name for rid, name in rq.all()}
     grade_ids = {e.grade_id for e in emp_by_id.values() if e.grade_id}
     grade_code_by_id: dict[int, str] = {}
     if grade_ids:
-        gq = await session.execute(
-            select(Grade.id, Grade.code).where(Grade.id.in_(grade_ids))
-        )
+        gq = await session.execute(select(Grade.id, Grade.code).where(Grade.id.in_(grade_ids)))
         grade_code_by_id = {gid: code for gid, code in gq.all()}
 
     # ★ для ролей кандидатов
@@ -706,9 +683,7 @@ async def suggest_replacements(
         )
         .distinct(Assessment.employee_id, AssessmentScore.competency_id)
     )
-    cand_levels: dict[tuple[int, int], int] = {
-        (eid, cid): lvl for eid, cid, lvl in levels_q.all()
-    }
+    cand_levels: dict[tuple[int, int], int] = {(eid, cid): lvl for eid, cid, lvl in levels_q.all()}
 
     # имена компетенций slot'а
     from app.models.mpk import Competency
@@ -794,9 +769,7 @@ async def suggest_replacements(
 
     if not viable:
         if blocked:
-            reason = (
-                "В целевом проекте есть подходящие, но все заморожены или в активной ротации"
-            )
+            reason = "В целевом проекте есть подходящие, но все заморожены или в активной ротации"
         else:
             reason = "В целевом проекте нет подходящих кандидатов"
         return ReplacementsResult(

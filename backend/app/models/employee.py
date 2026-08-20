@@ -44,9 +44,7 @@ class Employee(Base, TimestampMixin):
     # GitLab username для запросов в CodeBuddy. Если NULL — helper выводит из
     # email-prefix (email.split('@')[0].lower().replace('.', '_')). Заполняется
     # вручную через UI/SQL для случаев, когда автоматический derive не подходит.
-    gitlab_username: Mapped[str | None] = mapped_column(
-        String(100), nullable=True, index=True
-    )
+    gitlab_username: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
 
     owner: Mapped[User] = relationship()
     role: Mapped[Role | None] = relationship()

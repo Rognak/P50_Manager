@@ -8,6 +8,7 @@
 Использование:
     uv run python -m scripts.seed_other_managers
 """
+
 import asyncio
 import random
 import sys
@@ -37,11 +38,51 @@ MANAGERS: list[dict] = [
         "full_name": "Демо Руководитель QA",
         "password": DEFAULT_PASSWORD,
         "employees": [
-            {"full_name": "Демо Сотрудник QA01", "position": "Главный специалист по тестированию", "email": "zaharova@demo.local", "role": "Тестировщик", "grade": "Senior", "perf": 0.15, "n": 4},
-            {"full_name": "Демо Сотрудник QA02", "position": "Ведущий специалист по тестированию", "email": "grigoriev@demo.local", "role": "Тестировщик", "grade": "Middle+", "perf": 0.30, "n": 3},
-            {"full_name": "Демо Сотрудник QA03", "position": "Ведущий специалист по тестированию", "email": "semenova@demo.local", "role": "Тестировщик", "grade": "Middle", "perf": 0.10, "n": 3},
-            {"full_name": "Демо Сотрудник QA04", "position": "Специалист по тестированию", "email": "tarasov@demo.local", "role": "Тестировщик", "grade": "Junior+", "perf": 0.45, "n": 2},
-            {"full_name": "Демо Сотрудник SA01", "position": "Ведущий системный аналитик", "email": "efimova@demo.local", "role": "Системный аналитик", "grade": "Middle", "perf": 0.20, "n": 3},
+            {
+                "full_name": "Демо Сотрудник QA01",
+                "position": "Главный специалист по тестированию",
+                "email": "zaharova@demo.local",
+                "role": "Тестировщик",
+                "grade": "Senior",
+                "perf": 0.15,
+                "n": 4,
+            },
+            {
+                "full_name": "Демо Сотрудник QA02",
+                "position": "Ведущий специалист по тестированию",
+                "email": "grigoriev@demo.local",
+                "role": "Тестировщик",
+                "grade": "Middle+",
+                "perf": 0.30,
+                "n": 3,
+            },
+            {
+                "full_name": "Демо Сотрудник QA03",
+                "position": "Ведущий специалист по тестированию",
+                "email": "semenova@demo.local",
+                "role": "Тестировщик",
+                "grade": "Middle",
+                "perf": 0.10,
+                "n": 3,
+            },
+            {
+                "full_name": "Демо Сотрудник QA04",
+                "position": "Специалист по тестированию",
+                "email": "tarasov@demo.local",
+                "role": "Тестировщик",
+                "grade": "Junior+",
+                "perf": 0.45,
+                "n": 2,
+            },
+            {
+                "full_name": "Демо Сотрудник SA01",
+                "position": "Ведущий системный аналитик",
+                "email": "efimova@demo.local",
+                "role": "Системный аналитик",
+                "grade": "Middle",
+                "perf": 0.20,
+                "n": 3,
+            },
         ],
     },
     {
@@ -49,11 +90,51 @@ MANAGERS: list[dict] = [
         "full_name": "Демо Руководитель Mobile",
         "password": DEFAULT_PASSWORD,
         "employees": [
-            {"full_name": "Демо Сотрудник Mobile01", "position": "Главный специалист по разработке", "email": "belyaev@demo.local", "role": "Mobile iOS разработчик", "grade": "Senior", "perf": 0.10, "n": 4},
-            {"full_name": "Демо Сотрудник Java01", "position": "Главный специалист по разработке", "email": "zhukov@demo.local", "role": "Backend Java разработчик", "grade": "Senior+", "perf": 0.05, "n": 4},
-            {"full_name": "Демо Сотрудник Java02", "position": "Ведущий специалист по разработке", "email": "gavrilov@demo.local", "role": "Backend Java разработчик", "grade": "Middle", "perf": 0.25, "n": 3},
-            {"full_name": "Демо Сотрудник Java03", "position": "Специалист по разработке", "email": "romanov@demo.local", "role": "Backend Java разработчик", "grade": "Junior", "perf": 0.50, "n": 2},
-            {"full_name": "Демо Сотрудник DevOps01", "position": "Ведущий DevOps-инженер", "email": "zaitseva@demo.local", "role": "DevOps инженер", "grade": "Middle", "perf": 0.15, "n": 3},
+            {
+                "full_name": "Демо Сотрудник Mobile01",
+                "position": "Главный специалист по разработке",
+                "email": "belyaev@demo.local",
+                "role": "Mobile iOS разработчик",
+                "grade": "Senior",
+                "perf": 0.10,
+                "n": 4,
+            },
+            {
+                "full_name": "Демо Сотрудник Java01",
+                "position": "Главный специалист по разработке",
+                "email": "zhukov@demo.local",
+                "role": "Backend Java разработчик",
+                "grade": "Senior+",
+                "perf": 0.05,
+                "n": 4,
+            },
+            {
+                "full_name": "Демо Сотрудник Java02",
+                "position": "Ведущий специалист по разработке",
+                "email": "gavrilov@demo.local",
+                "role": "Backend Java разработчик",
+                "grade": "Middle",
+                "perf": 0.25,
+                "n": 3,
+            },
+            {
+                "full_name": "Демо Сотрудник Java03",
+                "position": "Специалист по разработке",
+                "email": "romanov@demo.local",
+                "role": "Backend Java разработчик",
+                "grade": "Junior",
+                "perf": 0.50,
+                "n": 2,
+            },
+            {
+                "full_name": "Демо Сотрудник DevOps01",
+                "position": "Ведущий DevOps-инженер",
+                "email": "zaitseva@demo.local",
+                "role": "DevOps инженер",
+                "grade": "Middle",
+                "perf": 0.15,
+                "n": 3,
+            },
         ],
     },
 ]
@@ -61,20 +142,20 @@ MANAGERS: list[dict] = [
 # (email сотрудника, project.code, role_in_project, joined_at)
 PROJECT_PLACEMENTS: list[tuple[str, str, str, date]] = [
     # QA-AUTO — усиление команды тестирования
-    ("zaharova@demo.local",  "QA-AUTO",    "Senior QA",            date(2026, 1, 12)),
-    ("grigoriev@demo.local", "QA-AUTO",    "QA Automation",        date(2026, 1, 20)),
-    ("tarasov@demo.local",   "QA-AUTO",    "Junior QA",            date(2026, 2, 15)),
+    ("zaharova@demo.local", "QA-AUTO", "Senior QA", date(2026, 1, 12)),
+    ("grigoriev@demo.local", "QA-AUTO", "QA Automation", date(2026, 1, 20)),
+    ("tarasov@demo.local", "QA-AUTO", "Junior QA", date(2026, 2, 15)),
     # ГибрИМА — внешняя QA + DevOps
-    ("semenova@demo.local",  "U190001633", "QA",                   date(2025, 4, 1)),
-    ("zaitseva@demo.local",  "U190001633", "DevOps",               date(2025, 6, 10)),
+    ("semenova@demo.local", "U190001633", "QA", date(2025, 4, 1)),
+    ("zaitseva@demo.local", "U190001633", "DevOps", date(2025, 6, 10)),
     # Уберизация НТЦ — аналитик + усиление Java/Python
-    ("efimova@demo.local",   "U230008409", "Системный аналитик",   date(2025, 9, 5)),
-    ("zhukov@demo.local",    "U230008409", "Backend (Java интеграции)", date(2025, 10, 1)),
-    ("gavrilov@demo.local",  "U230008409", "Backend Developer",    date(2025, 11, 15)),
+    ("efimova@demo.local", "U230008409", "Системный аналитик", date(2025, 9, 5)),
+    ("zhukov@demo.local", "U230008409", "Backend (Java интеграции)", date(2025, 10, 1)),
+    ("gavrilov@demo.local", "U230008409", "Backend Developer", date(2025, 11, 15)),
     # Mobile-приложение
-    ("belyaev@demo.local",   "M-001",      "iOS Developer",        date(2025, 6, 10)),
-    ("romanov@demo.local",   "M-001",      "Junior Backend (Java)", date(2025, 9, 1)),
-    ("zaitseva@demo.local",  "M-001",      "DevOps (part-time)",   date(2025, 7, 1)),
+    ("belyaev@demo.local", "M-001", "iOS Developer", date(2025, 6, 10)),
+    ("romanov@demo.local", "M-001", "Junior Backend (Java)", date(2025, 9, 1)),
+    ("zaitseva@demo.local", "M-001", "DevOps (part-time)", date(2025, 7, 1)),
 ]
 
 
@@ -88,9 +169,7 @@ def quarter_middle(offset_q: int) -> date:
 
 
 async def upsert_user(session, email: str, full_name: str, password: str) -> User:
-    existing = (
-        await session.execute(select(User).where(User.email == email))
-    ).scalar_one_or_none()
+    existing = (await session.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if existing is not None:
         # имя может уточниться, пароль не трогаем
         if existing.full_name != full_name:
@@ -137,16 +216,16 @@ async def main() -> None:
             users_n += 1
 
             # перезаливаем сотрудников этого руководителя
-            await session.execute(
-                delete(Employee).where(Employee.owner_id == user.id)
-            )
+            await session.execute(delete(Employee).where(Employee.owner_id == user.id))
             await session.flush()
 
             for item in mgr["employees"]:
                 role = roles.get(item["role"])
                 grade = grades.get(item["grade"])
                 if role is None or grade is None:
-                    print(f"!! пропуск {item['full_name']}: роль/грейд не найдены ({item['role']}/{item['grade']})")
+                    print(
+                        f"!! пропуск {item['full_name']}: роль/грейд не найдены ({item['role']}/{item['grade']})"
+                    )
                     continue
 
                 emp = Employee(
@@ -196,20 +275,20 @@ async def main() -> None:
 
         placed_n = 0
         for emp_email, code, role_in_project, joined_at in PROJECT_PLACEMENTS:
-            emp = emp_by_email.get(emp_email)
+            placement_emp = emp_by_email.get(emp_email)
             proj = proj_by_code.get(code)
-            if emp is None:
+            if placement_emp is None:
                 print(f"!! сотрудник не найден: {emp_email}")
                 continue
             if proj is None:
                 print(f"!! проект не найден: {code}")
                 continue
-            if (proj.id, emp.id) in existing_pairs:
+            if (proj.id, placement_emp.id) in existing_pairs:
                 continue
             session.add(
                 ProjectMember(
                     project_id=proj.id,
-                    employee_id=emp.id,
+                    employee_id=placement_emp.id,
                     role_in_project=role_in_project,
                     joined_at=joined_at,
                 )

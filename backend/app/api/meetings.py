@@ -87,9 +87,7 @@ async def get_meeting(
 ):
     await _ensure_owner(session, employee_id, current_user)
     q = await session.execute(
-        select(Meeting).where(
-            Meeting.id == meeting_id, Meeting.employee_id == employee_id
-        )
+        select(Meeting).where(Meeting.id == meeting_id, Meeting.employee_id == employee_id)
     )
     m = q.scalar_one_or_none()
     if m is None:
@@ -107,9 +105,7 @@ async def update_meeting(
 ):
     await _ensure_owner(session, employee_id, current_user)
     q = await session.execute(
-        select(Meeting).where(
-            Meeting.id == meeting_id, Meeting.employee_id == employee_id
-        )
+        select(Meeting).where(Meeting.id == meeting_id, Meeting.employee_id == employee_id)
     )
     m = q.scalar_one_or_none()
     if m is None:
@@ -162,9 +158,7 @@ async def delete_meeting(
 ):
     await _ensure_owner(session, employee_id, current_user)
     q = await session.execute(
-        select(Meeting).where(
-            Meeting.id == meeting_id, Meeting.employee_id == employee_id
-        )
+        select(Meeting).where(Meeting.id == meeting_id, Meeting.employee_id == employee_id)
     )
     m = q.scalar_one_or_none()
     if m is None:

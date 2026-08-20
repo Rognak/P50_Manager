@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from sqlalchemy import (
     DateTime,
@@ -25,7 +26,8 @@ class TechMaturitySurvey(Base, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("project_id", "period"),  # legacy, удалим в этапе 5
         UniqueConstraint(
-            "product_id", "period",
+            "product_id",
+            "period",
             name="uq_tech_maturity_surveys_product_period",
         ),
     )
@@ -40,7 +42,7 @@ class TechMaturitySurvey(Base, TimestampMixin):
     )
     period: Mapped[str] = mapped_column(String(20), nullable=False)
     # status: 'draft' | 'done'
-    status: Mapped[str] = mapped_column(
+    status: Mapped[Literal["draft", "done"]] = mapped_column(
         String(20), nullable=False, default="draft", server_default="draft"
     )
     template_version: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -51,9 +53,7 @@ class TechMaturitySurvey(Base, TimestampMixin):
     # для будущей расширяемости допускаем числа в [0..1]
     answers: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )

@@ -59,9 +59,7 @@ async def list_grades(session: SessionDep, _current_user: CurrentUser):
 
 
 @router.get("/roles/{role_id}/profile", response_model=RoleProfileDetail)
-async def get_role_profile(
-    role_id: int, session: SessionDep, _current_user: CurrentUser
-):
+async def get_role_profile(role_id: int, session: SessionDep, _current_user: CurrentUser):
     role = await session.get(Role, role_id)
     if role is None:
         raise HTTPException(status_code=404, detail="Роль не найдена")
@@ -69,17 +67,11 @@ async def get_role_profile(
     grades = list((await session.execute(select(Grade).order_by(Grade.sort_order))).scalars())
     comps = list(
         (
-            await session.execute(
-                select(Competency).order_by(Competency.sort_order, Competency.id)
-            )
+            await session.execute(select(Competency).order_by(Competency.sort_order, Competency.id))
         ).scalars()
     )
     profiles = list(
-        (
-            await session.execute(
-                select(RoleProfile).where(RoleProfile.role_id == role_id)
-            )
-        ).scalars()
+        (await session.execute(select(RoleProfile).where(RoleProfile.role_id == role_id))).scalars()
     )
     key_ids = set(
         (

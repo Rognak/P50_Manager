@@ -216,9 +216,7 @@ async def list_projects(session: SessionDep, current_user: CurrentUser):
 
 
 @router.post("", response_model=ProjectPublic, status_code=status.HTTP_201_CREATED)
-async def create_project(
-    payload: ProjectCreate, session: SessionDep, current_user: MutatorUser
-):
+async def create_project(payload: ProjectCreate, session: SessionDep, current_user: MutatorUser):
     proj = Project(
         code=payload.code,
         name=payload.name.strip(),
@@ -228,9 +226,7 @@ async def create_project(
         finished_at=payload.finished_at,
         created_by=current_user.id,
         # PM создаёт проект — автоматически становится его PM
-        product_manager_id=(
-            current_user.id if is_product_manager(current_user) else None
-        ),
+        product_manager_id=(current_user.id if is_product_manager(current_user) else None),
     )
     session.add(proj)
     await session.commit()
@@ -239,9 +235,7 @@ async def create_project(
 
 
 @router.get("/{project_id}", response_model=ProjectPublic)
-async def get_project(
-    project_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def get_project(project_id: int, session: SessionDep, current_user: CurrentUser):
     proj = await _load_project_for(session, project_id, current_user)
     return await _to_public(session, proj, current_user.id)
 
@@ -262,9 +256,7 @@ async def update_project(
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_project(
-    project_id: int, session: SessionDep, current_user: MutatorUser
-):
+async def delete_project(project_id: int, session: SessionDep, current_user: MutatorUser):
     proj = await _load_project_for(session, project_id, current_user)
     await session.delete(proj)
     await session.commit()
@@ -278,9 +270,7 @@ async def add_member(
     current_user: MutatorUser,
 ):
     proj = await _load_project_for(session, project_id, current_user)
-    eq = await session.execute(
-        select(Employee).where(Employee.id == payload.employee_id)
-    )
+    eq = await session.execute(select(Employee).where(Employee.id == payload.employee_id))
     if eq.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Сотрудник не найден")
     # дубликат
@@ -372,7 +362,9 @@ async def lock_member_rotation(
     return publics[0]
 
 
-@router.delete("/{project_id}/members/{member_id}/rotation-lock", response_model=ProjectMemberPublic)
+@router.delete(
+    "/{project_id}/members/{member_id}/rotation-lock", response_model=ProjectMemberPublic
+)
 async def unlock_member_rotation(
     project_id: int,
     member_id: int,
@@ -526,9 +518,7 @@ async def get_matrix(
 
 
 @router.get("/{project_id}/coverage", response_model=ProjectCoverage)
-async def get_coverage(
-    project_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def get_coverage(project_id: int, session: SessionDep, current_user: CurrentUser):
     """Покрытие тех.стека командой.
 
     В знаменателе — только участники, для роли которых компетенция:
@@ -546,9 +536,7 @@ async def get_coverage(
     levels = await _latest_levels_by_employee(session, emp_ids)
 
     eq = await session.execute(
-        select(Employee.id, Employee.role_id, Employee.grade_id).where(
-            Employee.id.in_(emp_ids)
-        )
+        select(Employee.id, Employee.role_id, Employee.grade_id).where(Employee.id.in_(emp_ids))
     )
     emp_role: dict[int, tuple[int | None, int | None]] = {
         eid: (rid, gid) for eid, rid, gid in eq.all()
@@ -558,15 +546,12 @@ async def get_coverage(
     required_map: dict[tuple[int, int, int], int] = {}
     if rg_pairs:
         conditions = [
-            and_(RoleProfile.role_id == rid, RoleProfile.grade_id == gid)
-            for rid, gid in rg_pairs
+            and_(RoleProfile.role_id == rid, RoleProfile.grade_id == gid) for rid, gid in rg_pairs
         ]
         rp_q = await session.execute(select(RoleProfile).where(or_(*conditions)))
         for rp in rp_q.scalars():
             if rp.required_level > 0:
-                required_map[(rp.role_id, rp.grade_id, rp.competency_id)] = (
-                    rp.required_level
-                )
+                required_map[(rp.role_id, rp.grade_id, rp.competency_id)] = rp.required_level
 
     # ★-ключевые компетенции по ролям (без учёта грейда)
     role_ids = {rid for rid, _ in emp_role.values() if rid}
@@ -581,9 +566,7 @@ async def get_coverage(
         key_set = {(rid, cid) for rid, cid in kq.all()}
 
     cq = await session.execute(
-        select(Competency).where(
-            Competency.id.in_([pc.competency_id for pc in proj.competencies])
-        )
+        select(Competency).where(Competency.id.in_([pc.competency_id for pc in proj.competencies]))
     )
     name_by_id = {c.id: c.name for c in cq.scalars()}
 
@@ -620,26 +603,18 @@ async def get_coverage(
         )
         if avg is not None and avg < pc.target_level:
             risk_score += pc.target_level - avg
-    items.sort(
-        key=lambda x: (-(x.target_level - (x.avg_level or 0)), x.competency_name)
-    )
+    items.sort(key=lambda x: (-(x.target_level - (x.avg_level or 0)), x.competency_name))
     return ProjectCoverage(items=items, risk_score=round(risk_score))
 
 
-@router.get(
-    "/{project_id}/grade-distribution", response_model=ProjectGradeDistribution
-)
-async def get_grade_distribution(
-    project_id: int, session: SessionDep, current_user: CurrentUser
-):
+@router.get("/{project_id}/grade-distribution", response_model=ProjectGradeDistribution)
+async def get_grade_distribution(project_id: int, session: SessionDep, current_user: CurrentUser):
     proj = await _load_project_for(session, project_id, current_user)
     emp_ids = [m.employee_id for m in proj.members]
     if not emp_ids:
         return ProjectGradeDistribution(items=[], no_grade=0)
 
-    eq = await session.execute(
-        select(Employee.grade_id).where(Employee.id.in_(emp_ids))
-    )
+    eq = await session.execute(select(Employee.grade_id).where(Employee.id.in_(emp_ids)))
     grade_counts: dict[int, int] = {}
     no_grade = 0
     for (gid,) in eq.all():
@@ -649,9 +624,7 @@ async def get_grade_distribution(
             grade_counts[gid] = grade_counts.get(gid, 0) + 1
 
     if grade_counts:
-        gq = await session.execute(
-            select(Grade).where(Grade.id.in_(grade_counts.keys()))
-        )
+        gq = await session.execute(select(Grade).where(Grade.id.in_(grade_counts.keys())))
         grades = list(gq.scalars())
         items = [
             GradeCount(grade_code=g.code, sort_order=g.sort_order, count=grade_counts[g.id])
@@ -711,9 +684,7 @@ async def list_project_pull_requests(
 
     async def _one(emp: Employee):
         try:
-            prs = await codebuddy_service.get_pull_requests(
-                emp, from_d, to_d, limit=200
-            )
+            prs = await codebuddy_service.get_pull_requests(emp, from_d, to_d, limit=200)
         except CodeBuddyAPIError as e:
             logger.warning("project %s PR for emp %s: %s", project_id, emp.id, e)
             return []

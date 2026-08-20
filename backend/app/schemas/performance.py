@@ -4,6 +4,7 @@
 участников). Все метрики считаются за период; сравнение с предыдущим
 окном даёт дельты.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -21,11 +22,11 @@ SignalSeverity = Literal["critical", "warning", "info"]
 class DevScoreBreakdown(BaseModel):
     """Оси composite-score, каждая 0..1 (вклад до умножения на вес)."""
 
-    quality: float       # средний quality PR-ов
-    tests: float         # доля PR с тестами
-    review: float        # активность в ревью (commentsWritten, нормализ.)
-    low_rework: float    # 1 − доля PR с переделками
-    volume: float        # объём (mr_count, нормализ. к максимуму команды)
+    quality: float  # средний quality PR-ов
+    tests: float  # доля PR с тестами
+    review: float  # активность в ревью (commentsWritten, нормализ.)
+    low_rework: float  # 1 − доля PR с переделками
+    volume: float  # объём (mr_count, нормализ. к максимуму команды)
 
 
 class DeveloperPerformance(BaseModel):
@@ -39,19 +40,19 @@ class DeveloperPerformance(BaseModel):
     prs_merged: int
     prs_closed: int
 
-    avg_quality: float            # 0..1
-    tests_pct: float              # 0..1
-    description_pct: float        # 0..1
+    avg_quality: float  # 0..1
+    tests_pct: float  # 0..1
+    description_pct: float  # 0..1
     avg_iterations: float
-    rework_pct: float             # 0..1 — доля PR с iterations>1
+    rework_pct: float  # 0..1 — доля PR с iterations>1
     comments_received: int
     ai_comments_received: int
-    comments_written: int         # ревью, написанные сотрудником (snapshot-wide)
+    comments_written: int  # ревью, написанные сотрудником (snapshot-wide)
     lines_added: int
     lines_removed: int
-    avg_ttm_hours: float | None   # среднее time-to-merge по merged PR
+    avg_ttm_hours: float | None  # среднее time-to-merge по merged PR
 
-    composite_score: float        # 0..100
+    composite_score: float  # 0..100
     breakdown: DevScoreBreakdown
 
     # Сравнение с предыдущим окном того же размера.
@@ -69,27 +70,27 @@ class ProductHealth(BaseModel):
     prs_merged: int
     prs_closed: int
 
-    avg_quality: float | None = None     # 0..1
+    avg_quality: float | None = None  # 0..1
     with_tests_pct: float | None = None  # 0..1
     avg_ttm_hours: float | None = None
 
     wip_count: int
     stale_count: int
 
-    coverage_gap: float                  # сумма гэпов ★-компетенций
-    bus_factor_count: int                # уникальных носителей ★-компетенций
+    coverage_gap: float  # сумма гэпов ★-компетенций
+    bus_factor_count: int  # уникальных носителей ★-компетенций
 
     # распределение нагрузки
     workload_top_share: float | None = None  # доля PR самого активного, 0..1
-    active_developers: int                   # сколько сделали ≥1 PR
+    active_developers: int  # сколько сделали ≥1 PR
     team_size: int
 
     # review-баланс
-    reviewers_count: int                 # сколько людей пишут ревью
+    reviewers_count: int  # сколько людей пишут ревью
 
     # общая оценка здоровья
     health_status: Literal["healthy", "attention", "critical"]
-    health_score: float                  # 0..100 интегральная
+    health_score: float  # 0..100 интегральная
 
     # дельты
     total_prs_delta: int | None = None
@@ -102,14 +103,14 @@ class ProductHealth(BaseModel):
 class SignalEvidenceItem(BaseModel):
     """Один пункт доказательной базы сигнала (конкретный PR / компетенция)."""
 
-    label: str                 # заголовок (название PR / компетенции)
+    label: str  # заголовок (название PR / компетенции)
     detail: str | None = None  # пояснение (возраст, дата, quality, уровень)
-    url: str | None = None     # ссылка (для PR)
+    url: str | None = None  # ссылка (для PR)
 
 
 class PerfSignal(BaseModel):
     severity: SignalSeverity
-    kind: str                  # машинный код типа сигнала
+    kind: str  # машинный код типа сигнала
     title: str
     detail: str
     employee_id: int | None = None
@@ -122,7 +123,7 @@ class PerfSignal(BaseModel):
 
 
 class ProductPerformanceResponse(BaseModel):
-    enabled: bool              # False если CodeBuddy выключен
+    enabled: bool  # False если CodeBuddy выключен
     period_from: date
     period_to: date
     health: ProductHealth
@@ -176,8 +177,8 @@ class ReviewAction(BaseModel):
 class ProductReviewResult(BaseModel):
     """Структурированный AI-разбор performance продукта."""
 
-    summary: str             # общая оценка (2–4 предложения)
-    health_verdict: str      # короткий вердикт по здоровью
+    summary: str  # общая оценка (2–4 предложения)
+    health_verdict: str  # короткий вердикт по здоровью
     top_performers: list[ReviewPerformer]
     risks: list[ReviewRisk]
     actions: list[ReviewAction]

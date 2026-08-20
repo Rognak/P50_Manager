@@ -13,6 +13,7 @@
 
 Запуск:  uv run python -m scripts.seed_assignments
 """
+
 import asyncio
 import sys
 from datetime import UTC, datetime, timedelta
@@ -28,22 +29,18 @@ from app.models.user import User
 
 def _at(days: int, hour: int = 18) -> datetime:
     """Дата сегодня + days, в указанный час UTC."""
-    return datetime.now(UTC).replace(
-        hour=hour, minute=0, second=0, microsecond=0
-    ) + timedelta(days=days)
+    return datetime.now(UTC).replace(hour=hour, minute=0, second=0, microsecond=0) + timedelta(
+        days=days
+    )
 
 
 async def _user(session, email: str) -> Optional[User]:
-    return (
-        await session.execute(select(User).where(User.email == email))
-    ).scalar_one_or_none()
+    return (await session.execute(select(User).where(User.email == email))).scalar_one_or_none()
 
 
 async def _employee(session, email: str) -> Optional[Employee]:
     return (
-        await session.execute(
-            select(Employee).where(Employee.email == email)
-        )
+        await session.execute(select(Employee).where(Employee.email == email))
     ).scalar_one_or_none()
 
 
@@ -88,6 +85,10 @@ async def main() -> None:
                 file=sys.stderr,
             )
             sys.exit(1)
+        assert ct is not None
+        assert admin is not None
+        assert lead_qa is not None
+        assert lead_mobile is not None
 
         # сотрудники admin (Python-практика)
         ivanov = await _employee(session, "ivanov@demo.local")

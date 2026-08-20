@@ -1,5 +1,5 @@
 /**
- * Розовый баннер ошибки для вкладок, которые ходят в CodeBuddy.
+ * Семантический баннер ошибки для вкладок, которые ходят в CodeBuddy.
  *
  * Если backend вернул ошибку с префиксом "CodeBuddy:" (см.
  * `_codebuddy_error_to_http` в `app/api/dev_metrics.py`) — показываем
@@ -11,7 +11,7 @@ export function CodeBuddyErrorBanner({ error }: { error: string }) {
     isCodeBuddy && /429|rate ?limit|too many/i.test(error)
 
   return (
-    <div className="rounded-2xl bg-rose-500/10 px-5 py-4 text-sm text-rose-200 ring-1 ring-rose-500/30">
+    <div className="rounded-2xl bg-danger-soft px-5 py-4 text-sm text-danger ring-1 ring-danger/30" role="alert">
       <div className="font-medium">
         {isRateLimit
           ? 'CodeBuddy временно ограничил частоту запросов'

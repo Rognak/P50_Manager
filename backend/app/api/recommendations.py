@@ -34,9 +34,7 @@ from app.schemas.recommendation import (
     RecommendationPublic,
 )
 
-router = APIRouter(
-    prefix="/employees/{employee_id}/recommendations", tags=["recommendations"]
-)
+router = APIRouter(prefix="/employees/{employee_id}/recommendations", tags=["recommendations"])
 
 
 def _docx_disposition(filename: str) -> str:
@@ -66,9 +64,7 @@ async def _ensure_owner(session, employee_id: int, current_user) -> Employee:
     return emp
 
 
-async def _legacy_unused_build_context(
-    session, employee: Employee
-) -> tuple[str, dict]:
+async def _legacy_unused_build_context(session, employee: Employee) -> tuple[str, dict]:
     """Собирает богатый контекст для генерации рекомендаций + сводку для хранения."""
     # current (latest per competency)
     cur_q = await session.execute(
@@ -165,19 +161,19 @@ async def _legacy_unused_build_context(
     # сортируем: сначала gap > 0 по убыванию, потом остальные
     rows: list[tuple[int, int | None, int | None, int | None, Competency]] = []
     for c in all_comps:
-        cur = current_by_comp.get(c.id)
-        req = required_by_comp.get(c.id)
-        gap = (
-            (req - (cur if cur is not None else 0))
-            if req is not None
+        current_level = current_by_comp.get(c.id)
+        required_level = required_by_comp.get(c.id)
+        gap_value = (
+            (required_level - (current_level if current_level is not None else 0))
+            if required_level is not None
             else None
         )
-        rows.append((c.sort_order, cur, req, gap, c))
+        rows.append((c.sort_order, current_level, required_level, gap_value, c))
     rows.sort(key=lambda r: (-(r[3] if r[3] and r[3] > 0 else 0), r[0]))
-    for _, cur, req, gap, c in rows:
-        cur_s = cur if cur is not None else "—"
-        req_s = req if req is not None else "—"
-        gap_s = f"{gap:+d}" if gap is not None else "—"
+    for _, current_value, required_value, gap_value, c in rows:
+        cur_s = current_value if current_value is not None else "—"
+        req_s = required_value if required_value is not None else "—"
+        gap_s = f"{gap_value:+d}" if gap_value is not None else "—"
         lines.append(f"  • {c.name}: {cur_s} / {req_s} / {gap_s}")
 
     if history:
@@ -208,7 +204,11 @@ async def _legacy_unused_build_context(
             if arts:
                 lines.append("  Материалы встречи:")
                 for a in arts[:20]:
-                    comp_name = by_id[a.competency_id].name if a.competency_id and a.competency_id in by_id else ""
+                    comp_name = (
+                        by_id[a.competency_id].name
+                        if a.competency_id and a.competency_id in by_id
+                        else ""
+                    )
                     lines.append(
                         f"    [{_format_artifact_kind(a.kind)}"
                         f"{' · ' + comp_name if comp_name else ''}]: {a.content[:400]}"
@@ -254,9 +254,7 @@ async def _client_or_503():
 
 
 @router.get("", response_model=list[RecommendationListItem])
-async def list_recommendations(
-    employee_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def list_recommendations(employee_id: int, session: SessionDep, current_user: CurrentUser):
     await _ensure_owner(session, employee_id, current_user)
     q = await session.execute(
         select(Recommendation)

@@ -85,7 +85,7 @@ function HealthTile({
   return (
     <div className="rounded-2xl bg-bg-elevated p-4 ring-1 ring-white/5">
       <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-accent">
+      <div className="mt-1 text-2xl font-semibold text-slate-200">
         {value}
         {delta}
       </div>
@@ -98,11 +98,11 @@ function HealthTile({
 function ScoreBreakdownBar({ d }: { d: DeveloperPerformance }) {
   const b = d.breakdown
   const parts = [
-    { label: 'quality', v: b.quality, w: 0.35, color: 'bg-emerald-500/70' },
-    { label: 'tests', v: b.tests, w: 0.2, color: 'bg-sky-500/70' },
-    { label: 'review', v: b.review, w: 0.15, color: 'bg-violet-500/70' },
-    { label: 'low-rework', v: b.low_rework, w: 0.15, color: 'bg-amber-500/70' },
-    { label: 'volume', v: b.volume, w: 0.15, color: 'bg-slate-400/70' },
+    { label: 'quality', v: b.quality, w: 0.35, color: 'bg-data-1' },
+    { label: 'tests', v: b.tests, w: 0.2, color: 'bg-data-2' },
+    { label: 'review', v: b.review, w: 0.15, color: 'bg-data-3' },
+    { label: 'low-rework', v: b.low_rework, w: 0.15, color: 'bg-data-4' },
+    { label: 'volume', v: b.volume, w: 0.15, color: 'bg-data-5' },
   ]
   return (
     <div className="flex h-2 w-full overflow-hidden rounded-full bg-bg-panel">
@@ -124,24 +124,24 @@ const SCORE_AXES: {
   weight: number
   color: string
 }[] = [
-  { key: 'quality', label: 'quality', weight: 0.35, color: 'bg-emerald-500/70' },
-  { key: 'tests', label: 'тесты', weight: 0.2, color: 'bg-sky-500/70' },
-  { key: 'review', label: 'review', weight: 0.15, color: 'bg-violet-500/70' },
+  { key: 'quality', label: 'quality', weight: 0.35, color: 'bg-data-1' },
+  { key: 'tests', label: 'тесты', weight: 0.2, color: 'bg-data-2' },
+  { key: 'review', label: 'review', weight: 0.15, color: 'bg-data-3' },
   {
     key: 'low_rework',
     label: 'low-rework',
     weight: 0.15,
-    color: 'bg-amber-500/70',
+    color: 'bg-data-4',
   },
-  { key: 'volume', label: 'объём', weight: 0.15, color: 'bg-slate-400/70' },
+  { key: 'volume', label: 'объём', weight: 0.15, color: 'bg-data-5' },
 ]
 
 const AXIS_HEX: Record<string, string> = {
-  quality: '#34d399',
-  tests: '#38bdf8',
-  review: '#a78bfa',
-  low_rework: '#fbbf24',
-  volume: '#94a3b8',
+  quality: 'var(--data-1)',
+  tests: 'var(--data-2)',
+  review: 'var(--data-3)',
+  low_rework: 'var(--data-4)',
+  volume: 'var(--data-5)',
 }
 
 function DevDetail({
@@ -375,7 +375,7 @@ function DeveloperRow({
         <td className="px-3 py-2.5 text-center text-slate-400">
           <span className="text-emerald-400/80">{d.comments_written}</span>
           <span className="text-slate-600"> дал · </span>
-          <span className="text-sky-400/80">{d.comments_received}</span>
+          <span className="text-ink-secondary">{d.comments_received}</span>
           <span className="text-slate-600"> получ.</span>
         </td>
       </tr>
@@ -746,7 +746,7 @@ function TrendCard({
             x2={W - padX}
             y2={H - padY}
             stroke="currentColor"
-            className="text-white/5"
+            className="text-outline-subtle"
             strokeWidth={1}
           />
           {segs.map((s, i) => (
@@ -870,28 +870,28 @@ function TrendsBlock({ productId }: { productId: number }) {
           title="PR-ов за окно"
           buckets={b}
           value={(x) => x.total_prs}
-          color="#38bdf8"
+          color="var(--data-1)"
           picker={(v) => String(Math.round(v))}
         />
         <TrendCard
           title="Merged за окно"
           buckets={b}
           value={(x) => x.prs_merged}
-          color="#34d399"
+          color="rgb(var(--color-success))"
           picker={(v) => String(Math.round(v))}
         />
         <TrendCard
           title="Средний quality"
           buckets={b}
           value={(x) => x.avg_quality}
-          color="#fbbf24"
+          color="rgb(var(--color-warning))"
           picker={(v) => `${Math.round(v * 100)}%`}
         />
         <TrendCard
           title="Зависшие PR"
           buckets={b}
           value={(x) => x.stale_open_count}
-          color="#fb7185"
+          color="rgb(var(--color-danger))"
           picker={(v) => String(Math.round(v))}
           goodWhenUp={false}
         />

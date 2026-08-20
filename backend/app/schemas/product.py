@@ -1,4 +1,5 @@
 """Pydantic-схемы для Product (логической единицы из 1+ репо)."""
+
 from datetime import date, datetime
 from typing import Literal
 

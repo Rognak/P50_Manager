@@ -1,4 +1,5 @@
 """Departments + their tech maturity surveys."""
+
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
@@ -28,9 +29,7 @@ router = APIRouter(prefix="/departments", tags=["departments"])
 # ---------- departments ----------
 
 
-async def _to_dept(
-    session, d: Department, current_user_id: int
-) -> DepartmentPublic:
+async def _to_dept(session, d: Department, current_user_id: int) -> DepartmentPublic:
     owner = await session.get(User, d.owner_id)
     return DepartmentPublic(
         id=d.id,
@@ -73,9 +72,7 @@ async def list_departments(session: SessionDep, current_user: CurrentUser):
     ]
 
 
-@router.post(
-    "", response_model=DepartmentPublic, status_code=status.HTTP_201_CREATED
-)
+@router.post("", response_model=DepartmentPublic, status_code=status.HTTP_201_CREATED)
 async def create_department(
     payload: DepartmentCreate, session: SessionDep, current_user: MutatorUser
 ):
@@ -91,9 +88,7 @@ async def create_department(
 
 
 @router.get("/{department_id}", response_model=DepartmentPublic)
-async def get_department(
-    department_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def get_department(department_id: int, session: SessionDep, current_user: CurrentUser):
     d = await session.get(Department, department_id)
     if d is None:
         raise HTTPException(status_code=404, detail="Отдел не найден")
@@ -122,9 +117,7 @@ async def update_department(
 
 
 @router.delete("/{department_id}", status_code=204)
-async def delete_department(
-    department_id: int, session: SessionDep, current_user: MutatorUser
-):
+async def delete_department(department_id: int, session: SessionDep, current_user: MutatorUser):
     d = await session.get(Department, department_id)
     if d is None:
         raise HTTPException(status_code=404, detail="Отдел не найден")
@@ -136,12 +129,8 @@ async def delete_department(
 # ---------- maturity surveys ----------
 
 
-@router.get(
-    "/{department_id}/maturity/template", response_model=DeptMaturityTemplate
-)
-async def get_template(
-    department_id: int, session: SessionDep, _current_user: CurrentUser
-):
+@router.get("/{department_id}/maturity/template", response_model=DeptMaturityTemplate)
+async def get_template(department_id: int, session: SessionDep, _current_user: CurrentUser):
     d = await session.get(Department, department_id)
     if d is None:
         raise HTTPException(status_code=404, detail="Отдел не найден")
@@ -152,9 +141,7 @@ async def get_template(
     "/{department_id}/maturity",
     response_model=list[DeptMaturitySurveyListItem],
 )
-async def list_surveys(
-    department_id: int, session: SessionDep, _current_user: CurrentUser
-):
+async def list_surveys(department_id: int, session: SessionDep, _current_user: CurrentUser):
     d = await session.get(Department, department_id)
     if d is None:
         raise HTTPException(status_code=404, detail="Отдел не найден")
@@ -180,9 +167,7 @@ async def list_surveys(
                 created_by_name=author,
                 overall_level=m["overall_level"],
                 total_rating=m["total_rating"],
-                rating_by_direction={
-                    dc: d["rating"] for dc, d in m["by_direction"].items()
-                },
+                rating_by_direction={dc: d["rating"] for dc, d in m["by_direction"].items()},
             )
         )
     return out
@@ -210,9 +195,7 @@ async def create_survey(
         )
     )
     if existing.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=409, detail=f"Опросник за {payload.period} уже создан"
-        )
+        raise HTTPException(status_code=409, detail=f"Опросник за {payload.period} уже создан")
     template = load_template()
     rv = DeptMaturitySurvey(
         department_id=department_id,
@@ -232,9 +215,7 @@ async def create_survey(
 
     # Уведомляем CoreTeam — у них надзорная функция за процессами
     ct_q = await session.execute(
-        select(User.id).where(
-            User.role == "core_team", User.is_active.is_(True)
-        )
+        select(User.id).where(User.role == "core_team", User.is_active.is_(True))
     )
     ct_ids = [uid for (uid,) in ct_q.all()]
     notifs = await record_notifications(
@@ -301,9 +282,7 @@ async def update_survey(
     notifs: list = []
     if completed_now:
         ct_q = await session.execute(
-            select(User.id).where(
-                User.role == "core_team", User.is_active.is_(True)
-            )
+            select(User.id).where(User.role == "core_team", User.is_active.is_(True))
         )
         ct_ids = [uid for (uid,) in ct_q.all()]
         notifs = await record_notifications(
@@ -360,9 +339,7 @@ async def overview(
     rows = list(dq.all())
     items: list[DeptMaturityOverviewItem] = []
     for d, owner_name in rows:
-        sq = select(DeptMaturitySurvey).where(
-            DeptMaturitySurvey.department_id == d.id
-        )
+        sq = select(DeptMaturitySurvey).where(DeptMaturitySurvey.department_id == d.id)
         if period:
             sq = sq.where(DeptMaturitySurvey.period == period)
         sq = sq.order_by(DeptMaturitySurvey.period.desc()).limit(1)
@@ -378,9 +355,7 @@ async def overview(
                 period=rv.period,
                 overall_level=m["overall_level"],
                 total_rating=m["total_rating"],
-                rating_by_direction={
-                    dc: x["rating"] for dc, x in m["by_direction"].items()
-                },
+                rating_by_direction={dc: x["rating"] for dc, x in m["by_direction"].items()},
             )
         )
     items.sort(key=lambda x: -x.total_rating)
@@ -390,18 +365,14 @@ async def overview(
 # ---------- helpers ----------
 
 
-async def _load_survey(
-    session, department_id: int, survey_id: int
-) -> DeptMaturitySurvey:
+async def _load_survey(session, department_id: int, survey_id: int) -> DeptMaturitySurvey:
     rv = await session.get(DeptMaturitySurvey, survey_id)
     if rv is None or rv.department_id != department_id:
         raise HTTPException(status_code=404, detail="Опросник не найден")
     return rv
 
 
-async def _to_survey_public(
-    session, rv: DeptMaturitySurvey
-) -> DeptMaturitySurveyPublic:
+async def _to_survey_public(session, rv: DeptMaturitySurvey) -> DeptMaturitySurveyPublic:
     template = load_template()
     m = calc_marks(template, rv.answers or {})
     author = await session.get(User, rv.created_by)

@@ -1,4 +1,5 @@
 """Модели админ-панели: системные настройки + история cron-запусков."""
+
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
@@ -37,6 +38,10 @@ SETTING_KEY_LLM = "llm"
 # Конфиг OpenAI-совместимого LLM, заданный из админ-панели. Любой ключ может
 # отсутствовать — тогда значение берётся из .env (AI_BASE_URL/AI_API_KEY/
 # AI_MODEL_CHAT). См. app/ai/client.py::resolve_ai_config.
+SETTING_KEY_GITLAB = "gitlab"
+# gitlab: { "api_token": str, "auto_sync_enabled": bool }
+# Токен, заданный администратором, имеет приоритет над GITLAB_API_TOKEN из
+# .env. Значение наружу никогда не возвращается.
 
 
 class SystemSetting(Base):
@@ -66,9 +71,7 @@ class CronRun(Base):
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    finished_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_msg: Mapped[str | None] = mapped_column(Text, nullable=True)
     triggered_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True

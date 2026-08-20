@@ -31,9 +31,7 @@ class PublicProfile(BaseModel):
 
 
 @router.get("/employees/{employee_id}/public-profile", response_model=PublicProfile)
-async def get_public_profile(
-    employee_id: int, session: SessionDep, current_user: CurrentUser
-):
+async def get_public_profile(employee_id: int, session: SessionDep, current_user: CurrentUser):
     """Публичная карточка сотрудника: ФИО, роль, грейд, owner + полный МПК-профиль
     (latest-per-comp + required + gap). Без assessments/artifacts/recommendations.
     Доступна любому авторизованному."""
@@ -81,9 +79,7 @@ async def get_public_profile(
         for p in rq.scalars():
             required_by_comp[p.competency_id] = p.required_level
 
-    cq = await session.execute(
-        select(Competency).order_by(Competency.sort_order, Competency.id)
-    )
+    cq = await session.execute(select(Competency).order_by(Competency.sort_order, Competency.id))
     items: list[MpkProfileItem] = []
     for c in cq.scalars():
         cur = current_by_comp.get(c.id)

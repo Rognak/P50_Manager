@@ -1,10 +1,12 @@
 """Экспорт markdown-документов в DOCX и print-ready HTML (для сохранения как PDF из браузера)."""
+
 import io
 import re
 from html import escape
 
 import markdown as md_lib
 from docx import Document
+from docx.document import Document as DocumentObject
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import Pt, RGBColor
 
@@ -13,7 +15,7 @@ _CODE_FONT = "Menlo"
 _BODY_FONT = "Calibri"
 
 
-def _set_base_style(doc: Document) -> None:
+def _set_base_style(doc: DocumentObject) -> None:
     style = doc.styles["Normal"]
     style.font.name = _BODY_FONT
     style.font.size = Pt(11)
@@ -23,10 +25,10 @@ def _add_inline(paragraph, text: str) -> None:
     """Очень простой парсер инлайн-разметки: **bold**, *italic*, `code`, [text](url)."""
     # Порядок: сначала код, потом ссылки, потом жирный/курсив
     pattern = re.compile(
-        r"(\*\*[^*\n]+?\*\*)"          # **bold**
-        r"|(\*[^*\n]+?\*)"              # *italic*
-        r"|(`[^`\n]+?`)"                # `code`
-        r"|(\[[^\]]+?\]\([^)]+?\))"     # [text](url)
+        r"(\*\*[^*\n]+?\*\*)"  # **bold**
+        r"|(\*[^*\n]+?\*)"  # *italic*
+        r"|(`[^`\n]+?`)"  # `code`
+        r"|(\[[^\]]+?\]\([^)]+?\))"  # [text](url)
     )
     pos = 0
     for m in pattern.finditer(text):

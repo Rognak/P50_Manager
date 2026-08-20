@@ -32,11 +32,20 @@ dev-dependencies = [
     "pytest-asyncio>=0.24",
     "httpx>=0.28",
     "ruff>=0.8",
+    "mypy>=2.3.1",
+    "types-markdown>=3.10.2.20260712",
+    "types-openpyxl>=3.1.5.20260807",
+    "types-python-jose>=3.5.0.20260408",
 ]
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "typings"
+check_untyped_defs = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

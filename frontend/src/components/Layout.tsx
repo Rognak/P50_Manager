@@ -6,12 +6,13 @@ import { clearToken } from '../lib/auth'
 import { useAuth } from '../lib/auth-context'
 import { ExternalLinkIcon } from './ExternalLinkIcon'
 import { NotificationBell } from './NotificationBell'
+import { ThemeToggle } from './ThemeToggle'
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `block rounded-lg px-3 py-2 text-sm transition ${
+  `block border-l-2 rounded-lg px-3 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
     isActive
-      ? 'bg-accent/20 text-accent'
-      : 'text-slate-400 hover:bg-bg-panel hover:text-slate-200'
+      ? 'nav-item-active font-medium'
+      : 'border-transparent text-ink-secondary hover:bg-surface-subtle hover:text-ink'
   }`
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -21,9 +22,9 @@ const ROLE_LABEL: Record<UserRole, string> = {
 }
 
 const ROLE_TONE: Record<UserRole, string> = {
-  department_head: 'text-accent',
-  manager: 'text-amber-400',
-  core_team: 'text-violet-300',
+  department_head: 'text-primary',
+  manager: 'text-ink-secondary',
+  core_team: 'text-ink-secondary',
 }
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -45,11 +46,11 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <aside className="flex h-screen w-56 shrink-0 flex-col overflow-y-auto border-r border-white/5 bg-bg-elevated p-4">
-        <div className="mb-2 text-lg font-semibold text-accent">Прогресс 50</div>
+      <aside className="flex h-screen w-56 shrink-0 flex-col overflow-y-auto border-r border-outline-subtle bg-surface p-4">
+        <div className="mb-2 text-lg font-semibold text-primary">Прогресс 50</div>
         {user && (
-          <div className="mb-6 rounded-lg bg-bg-panel/40 p-2 ring-1 ring-white/5">
-            <div className="truncate text-xs font-medium text-slate-200">
+          <div className="mb-6 rounded-lg bg-surface-subtle p-2 ring-1 ring-outline-subtle">
+            <div className="truncate text-xs font-medium text-ink">
               {user.full_name}
             </div>
             <div
@@ -58,7 +59,7 @@ export function Layout({ children }: { children: ReactNode }) {
             >
               {ROLE_LABEL[user.role]}
               {user.is_admin && (
-                <span className="ml-1 text-amber-400">· admin</span>
+                <span className="ml-1 text-warning">· admin</span>
               )}
             </div>
           </div>
@@ -77,6 +78,11 @@ export function Layout({ children }: { children: ReactNode }) {
           {visible('projects') && (
             <NavLink to="/products" className={linkClass}>
               Продукты
+            </NavLink>
+          )}
+          {visible('technology_radar') && (
+            <NavLink to="/technology-radar" className={linkClass}>
+              Радар технологий
             </NavLink>
           )}
           {visible('departments') && (
@@ -118,7 +124,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
         {user?.external_links && user.external_links.length > 0 && (
           <div className="mt-6">
-            <div className="mb-2 text-[10px] uppercase tracking-wide text-slate-500">
+            <div className="mb-2 text-[10px] uppercase tracking-wide text-ink-muted">
               Смежные системы
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -129,10 +135,10 @@ export function Layout({ children }: { children: ReactNode }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   title={link.url}
-                  className="group flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl bg-bg-panel/40 px-2 py-2 text-center ring-1 ring-white/5 transition hover:bg-bg-panel hover:ring-accent/30"
+                  className="group flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl bg-surface-subtle px-2 py-2 text-center ring-1 ring-outline-subtle transition hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <ExternalLinkIcon label={link.label} />
-                  <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-300 group-hover:text-slate-100">
+                  <span className="line-clamp-2 text-[11px] font-medium leading-tight text-ink-secondary group-hover:text-ink">
                     {link.label}
                   </span>
                 </a>
@@ -143,13 +149,14 @@ export function Layout({ children }: { children: ReactNode }) {
 
         <button
           onClick={logout}
-          className="mt-6 w-full rounded-lg border border-white/5 px-3 py-2 text-sm text-slate-400 hover:bg-bg-panel"
+          className="mt-6 w-full rounded-lg border border-outline px-3 py-2 text-sm text-ink-secondary transition hover:bg-surface-subtle hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           Выйти
         </button>
       </aside>
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-end gap-3 border-b border-white/5 bg-bg-elevated/60 px-6 py-2">
+        <header className="flex items-center justify-end gap-3 border-b border-outline-subtle bg-surface px-6 py-2">
+          <ThemeToggle />
           {user?.is_admin && (
             <button
               onClick={() => navigate('/admin')}
@@ -158,8 +165,9 @@ export function Layout({ children }: { children: ReactNode }) {
               className={
                 'rounded-lg px-2 py-1 text-base transition ' +
                 (location.pathname.startsWith('/admin')
-                  ? 'bg-accent/20 text-accent'
-                  : 'text-slate-400 hover:bg-bg-panel hover:text-slate-200')
+                  ? 'bg-primary-soft text-primary'
+                  : 'text-ink-secondary hover:bg-surface-subtle hover:text-ink') +
+                ' focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
               }
             >
               ⚙

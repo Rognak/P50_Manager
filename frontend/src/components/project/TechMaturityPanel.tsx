@@ -36,20 +36,20 @@ function formatDate(iso: string | null): string {
 
 function ratingTone(rating: number): string {
   // total_rating ∈ [0..100]
-  if (rating >= 70) return 'text-emerald-400'
-  if (rating >= 40) return 'text-accent'
-  if (rating >= 20) return 'text-amber-400'
-  return 'text-rose-400'
+  if (rating >= 70) return 'text-success'
+  if (rating >= 40) return 'text-ink'
+  if (rating >= 20) return 'text-warning'
+  return 'text-danger'
 }
 
 const DIR_COLORS = [
-  '#34d4c8', // accent
-  '#60a5fa', // blue
-  '#fbbf24', // amber
-  '#a78bfa', // violet
-  '#f87171', // rose-light
-  '#86efac', // green-light
-  '#f472b6', // pink
+  'var(--chart-primary)',
+  'var(--data-1)',
+  'var(--data-2)',
+  'var(--data-3)',
+  'var(--data-4)',
+  'var(--data-5)',
+  'var(--data-6)',
 ]
 
 // Динамика общего рейтинга по периодам с hover-tooltip
@@ -98,7 +98,7 @@ function TotalRatingChart({
                 y1={yOf(y)}
                 x2={W - PAD_R}
                 y2={yOf(y)}
-                stroke="#1f2937"
+                stroke="var(--chart-grid)"
                 strokeDasharray={y === 0 || y === 100 ? '0' : '2 3'}
                 strokeWidth="1"
               />
@@ -107,7 +107,7 @@ function TotalRatingChart({
                 y={yOf(y) + 3}
                 textAnchor="end"
                 fontSize="10"
-                fill="#64748b"
+                fill="var(--chart-muted)"
               >
                 {y}
               </text>
@@ -119,12 +119,12 @@ function TotalRatingChart({
               y1={PAD_T}
               x2={PAD_L + hoverIdx * xStep}
               y2={PAD_T + innerH}
-              stroke="#475569"
+              stroke="var(--chart-cursor)"
               strokeWidth="1"
               strokeDasharray="3 3"
             />
           )}
-          <path d={path} stroke="#34d4c8" strokeWidth="2.5" fill="none" />
+          <path d={path} stroke="var(--chart-primary)" strokeWidth="2.5" fill="none" />
           {sorted.map((s, i) => {
             const x = PAD_L + i * xStep
             const isHov = hoverIdx === i
@@ -134,8 +134,8 @@ function TotalRatingChart({
                   cx={x}
                   cy={yOf(s.total_rating)}
                   r={isHov ? 5 : 4}
-                  fill="#34d4c8"
-                  stroke={isHov ? '#0b1223' : 'none'}
+                  fill="var(--chart-primary)"
+                  stroke={isHov ? 'var(--chart-point-outline)' : 'none'}
                   strokeWidth={isHov ? 1.5 : 0}
                 />
                 <text
@@ -144,7 +144,7 @@ function TotalRatingChart({
                   textAnchor="middle"
                   fontSize="11"
                   fontWeight="600"
-                  fill="#34d4c8"
+                  fill="var(--chart-primary)"
                 >
                   {s.total_rating.toFixed(0)}
                 </text>
@@ -154,7 +154,7 @@ function TotalRatingChart({
                   textAnchor="middle"
                   fontSize="11"
                   fontWeight={isHov ? 700 : 400}
-                  fill={isHov ? '#e2e8f0' : '#94a3b8'}
+                  fill={isHov ? 'var(--chart-text)' : 'var(--chart-muted)'}
                 >
                   {s.period}
                 </text>
@@ -313,7 +313,7 @@ function DirectionsChart({
                 y1={yOf(y)}
                 x2={W - PAD_R}
                 y2={yOf(y)}
-                stroke="#1f2937"
+                stroke="var(--chart-grid)"
                 strokeDasharray={y === 0 || y === maxPerDir ? '0' : '2 3'}
               />
               <text
@@ -321,7 +321,7 @@ function DirectionsChart({
                 y={yOf(y) + 3}
                 textAnchor="end"
                 fontSize="10"
-                fill="#64748b"
+                fill="var(--chart-muted)"
               >
                 {y.toFixed(1)}
               </text>
@@ -335,7 +335,7 @@ function DirectionsChart({
               y1={PAD_T}
               x2={PAD_L + hoverIdx * xStep}
               y2={PAD_T + innerH}
-              stroke="#475569"
+              stroke="var(--chart-cursor)"
               strokeWidth="1"
               strokeDasharray="3 3"
             />
@@ -374,7 +374,7 @@ function DirectionsChart({
                       cy={yOf(s.rating_by_direction[dc] ?? 0)}
                       r={isHovered || highlight === dc ? 4 : 2.5}
                       fill={color}
-                      stroke={isHovered ? '#0b1223' : 'none'}
+                      stroke={isHovered ? 'var(--chart-point-outline)' : 'none'}
                       strokeWidth={isHovered ? 1.5 : 0}
                     />
                   )
@@ -409,7 +409,7 @@ function DirectionsChart({
               textAnchor="middle"
               fontSize="11"
               fontWeight={hoverIdx === i ? 700 : 400}
-              fill={hoverIdx === i ? '#e2e8f0' : '#94a3b8'}
+              fill={hoverIdx === i ? 'var(--chart-text)' : 'var(--chart-muted)'}
             >
               {s.period}
             </text>
